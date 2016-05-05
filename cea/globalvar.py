@@ -5,6 +5,7 @@ Global variables
 
 """
 import functions
+import Calc_Thermal_loads_emission_and_control_v1 as cv1
 
 
 class GlobalVariables(object):
@@ -52,4 +53,4 @@ class GlobalVariables(object):
         self.Pfan = 0.55 # specific fan consumption in W/m3/h
 
         # here is where we plug in the models to use for calculations
-        self.models = {'calc-thermal-loads': functions.CalcThermalLoads}
+        self.models = {'calc-thermal-loads': cv1.CalcThermalLoads_emission_control_systems}

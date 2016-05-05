@@ -247,6 +247,59 @@ def calc_Qem_ls(SystemH,SystemC):
         
     return list(tHC_corr)
 
+def calc_tHC_corr(SystemH,SystemC,sys_e_ctrl):
+    """model of losses in the emission and control system for space heating and cooling.
+    correction factor for the heating and cooling setpoints. extracted from EN 15316-2"""
+    tHC_corr = [0,0]
+    delta_ctrl = [0,0]
+
+    # emission system room temperature control type
+    if sys_e_ctrl == 'T1':
+        delta_ctrl == [2.5, -2.5]
+    elif sys_e_ctrl == 'T2':
+        delta_ctrl == [1.2, -1.2]
+    elif sys_e_ctrl == 'T3':
+        delta_ctrl == [0.9, -0.9]
+    elif sys_e_ctrl == 'T4':
+        delta_ctrl == [1.8, -1.8]
+
+    # calculate temperature correction
+    if SystemH == 'T1':
+        tHC_corr[0] = delta_ctrl[0] + 0.15
+    elif SystemH == 'T2':
+        tHC_corr[0] = delta_ctrl[0] - 0.1
+    elif SystemH == 'T3':
+        tHC_corr[0] = delta_ctrl[0] - 1.1
+    elif SystemH == 'T4':
+        tHC_corr[0] = delta_ctrl[0] - 0.9
+    else:
+        tHC_corr[0] = 0
+
+
+    if SystemC == 'T1':
+        tHC_corr[1] = delta_ctrl[1] - 1.9
+    elif SystemC == 'T2': # no emission losses but emissions for ventilation
+        tHC_corr[1] = delta_ctrl[1] - 1.3
+    elif SystemC == 'T3':
+        tHC_corr[1] = delta_ctrl[1] - 1.5
+    else:
+        tHC_corr[1] = 0
+
+    return tHC_corr[0], tHC_corr[1]
+
+def calc_Qem_ls_f(tHset_corr, tCset_corr, tintH_set, tintC_set, Qhs_sen, Qcs_sen, te, Flag):
+    """model of losses in the emission and control system for space heating and cooling.
+    correction factor for the heating and cooling setpoints. extracted from EN 15316-2"""
+    Qem_hs_ls = 0
+    Qem_cs_ls = 0
+    if Flag == False and Qhs_sen != 0:
+        Qem_hs_ls = Qhs_sen*(tHset_corr/(tintH_set+tHset_corr-te))  #heating emission heat loss
+    elif Flag == True and Qcs_sen != 0:
+        delta_e_sol = 12  # emperature fluctuation from solar and internal gain for office (cooling only activated in office)
+        Qem_cs_ls = Qcs_sen*(tCset_corr/(tintC_set+tCset_corr-delta_e_sol-te)) # cooling emission heat loss
+
+    return Qem_hs_ls, Qem_cs_ls
+
 def Calc_Im_tot(I_m,Htr_em,te_t,Htr_3,I_st,Htr_w,Htr_1,I_ia,IHC_nd,Hve,Htr_2):
     return I_m + Htr_em * te_t + Htr_3*(I_st + Htr_w*te_t + Htr_1*(((I_ia + IHC_nd)/Hve) + te_t))/Htr_2
 
