@@ -255,13 +255,13 @@ def calc_tHC_corr(SystemH,SystemC,sys_e_ctrl):
 
     # emission system room temperature control type
     if sys_e_ctrl == 'T1':
-        delta_ctrl == [2.5, -2.5]
+        delta_ctrl = [ 2.5 , -2.5 ]
     elif sys_e_ctrl == 'T2':
-        delta_ctrl == [1.2, -1.2]
+        delta_ctrl = [ 1.2 , -1.2 ]
     elif sys_e_ctrl == 'T3':
-        delta_ctrl == [0.9, -0.9]
+        delta_ctrl = [ 0.9 , -0.9 ]
     elif sys_e_ctrl == 'T4':
-        delta_ctrl == [1.8, -1.8]
+        delta_ctrl = [ 1.8 , -1.8 ]
 
     # calculate temperature correction
     if SystemH == 'T1':
@@ -622,8 +622,8 @@ def CalcThermalLoads(Name, prop_occupancy, prop_architecture, prop_thermal, prop
                 
         # Calc requirements of generation systems (both cooling and heating do not have a storage):
         Qhsf = Qhs_sen_incl_em_ls + Qhs_d_ls   # no latent is considered because it is already added as electricity from the adiabatic system.
-        Qcs = Qcs_sen_incl_em_ls + Qcs_lat
-        Qcsf = Qcs + Qcs_d_ls
+        Qcs = (Qcs_sen_incl_em_ls - Qcs_em_ls) + Qcs_lat
+        Qcsf = Qcs + Qcs_em_ls + Qcs_d_ls
         Qcsf = -abs(Qcsf)
         Qcs = -abs(Qcs)
         

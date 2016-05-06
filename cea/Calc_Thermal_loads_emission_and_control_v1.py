@@ -1,5 +1,6 @@
 import numpy as np
 import functions as f
+import pandas as pd
 
 
 def CalcThermalLoads_emission_control_systems(Name, prop_occupancy, prop_architecture, prop_thermal, prop_geometry, prop_HVAC, prop_RC_model,
@@ -127,6 +128,8 @@ def CalcThermalLoads_emission_control_systems(Name, prop_occupancy, prop_archite
             tm_t0 = Tm[k]
 
             # Calculate new sensible loads with HVAC systems incl. recovery.
+            Qhs_sen_incl_em_ls = Qhs_em_ls + Qhs_sen
+            Qcs_sen_incl_em_ls = Qcs_em_ls + Qcs_sen
             if sys_e_cooling == 'T0':
                 Qcs_sen[k] = 0
             if sys_e_heating == 'T3' or sys_e_cooling == 'T3':
@@ -140,16 +143,16 @@ def CalcThermalLoads_emission_control_systems(Name, prop_occupancy, prop_archite
                                                                                           w_int[k], gv)
                 t5_1 = t5[k]
                 if sys_e_heating == 'T3':
-                    Qhs_sen[k] = temporal_Qhs
+                    Qhs_sen_incl_em_ls[k] = temporal_Qhs
                 if sys_e_cooling == 'T3':
-                    Qcs_sen[k] = temporal_Qcs
+                    Qcs_sen_incl_em_ls[k] = temporal_Qcs
 
         # Calc of Qhs_dis_ls/Qcs_dis_ls - losses due to distribution of heating/cooling coils
         # erase possible disruptions from dehumidification days
-        Qhs_sen_incl_em_ls = Qhs_sen + Qhs_em_ls
-        Qcs_sen_incl_em_ls = Qcs_sen + Qcs_em_ls
-        Qhs_sen_incl_em_ls[Qhs_sen_incl_em_ls < 0] = 0
-        Qcs_sen_incl_em_ls[Qcs_sen_incl_em_ls > 0] = 0
+        #Qhs_sen_incl_em_ls = Qhs_sen + Qhs_em_ls
+        #Qcs_sen_incl_em_ls = Qcs_sen + Qcs_em_ls
+        #Qhs_sen_incl_em_ls[Qhs_sen_incl_em_ls < 0] = 0
+        #Qcs_sen_incl_em_ls[Qcs_sen_incl_em_ls > 0] = 0
         Qhs_sen_incl_em_ls_0 = Qhs_sen_incl_em_ls.max()
         Qcs_sen_incl_em_ls_0 = Qcs_sen_incl_em_ls.min()  # cooling loads up to here in negative values
         Qhs_d_ls, Qcs_d_ls = np.vectorize(f.calc_Qdis_ls)(Ta, T_ext, Qhs_sen_incl_em_ls, Qcs_sen_incl_em_ls, Ths_sup_0,
@@ -158,15 +161,26 @@ def CalcThermalLoads_emission_control_systems(Name, prop_occupancy, prop_archite
                                                     gv.D, Y[0], sys_e_heating, sys_e_cooling, gv.Bf, Lv)
 
         # Calc requirements of generation systems (both cooling and heating do not have a storage):
-        Qhsf = Qhs_sen_incl_em_ls + Qhs_d_ls  # no latent is considered because it is already added as electricity from the adiabatic system.
-        Qcs = Qcs_sen + Qcs_lat
+        Qhsf = Qhs_sen_incl_em_ls + Qhs_d_ls   # no latent is considered because it is already added as electricity from the adiabatic system.
+        Qcs = (Qcs_sen_incl_em_ls - Qcs_em_ls) + Qcs_lat
         Qcsf = Qcs + Qcs_em_ls + Qcs_d_ls
         Qcsf = -abs(Qcsf)
         Qcs = -abs(Qcs)
 
-        # Calc nomincal temperatures of systems
-        Qhsf_0 = Qhsf.max()  # in W
-        Qcsf_0 = Qcsf.min()  # in W negative
+        # Calc nominal temperatures of systems
+        Qhsf_0 = np.nanmax(Qhsf)  # in W
+        Qcsf_0 = np.nanmin(Qcsf)  # in W negative
+
+        #print(np.nanmax(Qhsf))
+        #print(Qhs_sen_incl_em_ls)
+        #print(Qhs_d_ls)
+        #print(Qhsf.max())
+        #print (tHset_corr, tCset_corr)
+        #print (np.where(Qhsf == Qhsf_0))
+        #DATE = pd.date_range('1/1/2010', periods=8760, freq='H')
+        #pd.DataFrame(
+        #    {'Qcsf': Qcsf, 'Qcsf_0': Qcsf_0, 'Qhsf': Qhsf, 'Qhsf_0': Qhsf_0, 'Qcs_em_ls': Qcs_em_ls,
+        #     'Qhs_em_ls': Qhs_em_ls, 'Qhs_sen':Qhs_sen, 'Qcs_sen':Qcs_sen, 'Qhs_sen_incl_em_ls':Qhs_sen_incl_em_ls,'Qcs_sen_incl_em_ls':Qcs_sen_incl_em_ls }).to_csv(locationFinal + '\\' + Name + 'test.csv', index=False, float_format='%.2f')
 
         # Cal temperatures of all systems
         Tcs_re, Tcs_sup, Ths_re, Ths_sup, mcpcs, mcphs = f.calc_temperatures_emission_systems(Qcsf, Qcsf_0, Qhsf, Qhsf_0,
