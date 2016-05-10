@@ -53,4 +53,5 @@ class GlobalVariables(object):
         self.Pfan = 0.55 # specific fan consumption in W/m3/h
 
         # here is where we plug in the models to use for calculations
-        self.models = {'calc-thermal-loads': cv1.CalcThermalLoads_emission_control_systems}
+        #self.models = {'calc-thermal-loads': cv1.CalcThermalLoads_emission_control_systems}
+        self.models = {'calc-thermal-loads': functions.CalcThermalLoads}
