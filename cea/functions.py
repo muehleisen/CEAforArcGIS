@@ -277,11 +277,11 @@ def calc_tHC_corr(SystemH,SystemC,sys_e_ctrl):
 
 
     if SystemC == 'T1':
-        tHC_corr[1] = delta_ctrl[1] - 1.9
+        tHC_corr[1] = delta_ctrl[1] + 0.5
     elif SystemC == 'T2': # no emission losses but emissions for ventilation
-        tHC_corr[1] = delta_ctrl[1] - 1.3
+        tHC_corr[1] = delta_ctrl[1] + 0.7
     elif SystemC == 'T3':
-        tHC_corr[1] = delta_ctrl[1] - 1.5
+        tHC_corr[1] = delta_ctrl[1] + 0.5
     else:
         tHC_corr[1] = 0
 
@@ -608,6 +608,7 @@ def CalcThermalLoads(Name, prop_occupancy, prop_architecture, prop_thermal, prop
                 t5_1 = t5[k]
                 if sys_e_heating == 'T3':
                     Qhs_sen_incl_em_ls[k] = temporal_Qhs
+                    Qhs_sen[k] = temporal_Qhs - Qhs_em_ls[k]
                 if sys_e_cooling == 'T3':
                     Qcs_sen_incl_em_ls[k] = temporal_Qcs
 

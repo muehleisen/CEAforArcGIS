@@ -139,11 +139,11 @@ def CalcThermalLoads_emission_control_systems(Name, prop_occupancy, prop_archite
                                                                                                  people[k], RH_ext[k],
                                                                                                  T_ext[k], Ta[k],
                                                                                                  qv_req[k], Flag_season,
-                                                                                                 QHC_sen[k], t5_1,
-                                                                                          w_int[k], gv)
+                                                                                                 QHC_sen[k], t5_1, w_int[k], gv)
                 t5_1 = t5[k]
                 if sys_e_heating == 'T3':
                     Qhs_sen_incl_em_ls[k] = temporal_Qhs
+                    Qhs_sen[k] = temporal_Qhs - Qhs_em_ls[k]
                 if sys_e_cooling == 'T3':
                     Qcs_sen_incl_em_ls[k] = temporal_Qcs
 
