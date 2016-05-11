@@ -296,7 +296,7 @@ def calc_Qem_ls_f(tHset_corr, tCset_corr, tintH_set, tintC_set, Qhs_sen, Qcs_sen
         Qem_hs_ls = Qhs_sen*(tHset_corr/(tintH_set+tHset_corr-te))  #heating emission heat loss
     elif Flag == True and Qcs_sen != 0:
         delta_e_sol = 12  # emperature fluctuation from solar and internal gain for office (cooling only activated in office)
-        Qem_cs_ls = Qcs_sen*(tCset_corr/(tintC_set+tCset_corr-delta_e_sol-te)) # cooling emission heat loss
+        Qem_cs_ls = Qcs_sen*(tCset_corr/(tintC_set+tCset_corr+delta_e_sol-te)) # cooling emission heat loss
 
     return Qem_hs_ls, Qem_cs_ls
 
@@ -871,7 +871,7 @@ def calc_temperatures_emission_systems(Qcsf, Qcsf_0, Qhsf, Qhsf_0, Ta, Ta_re_cs,
 
 
 def results_to_csv(Af, Ealf, Ealf_0, Ealf_tot, Eauxf, Eauxf_tot, Edata, Edata_tot, Epro, Epro_tot, Name, Occupancy,
-                   Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qhs_sen, Qhsf, Qhsf_0, Qww, Qww_ls_st, Qwwf, Qwwf_0,
+                   Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qhs_sen, Qhs_em_ls, Qcs_em_ls, Qhsf, Qhsf_0, Qww, Qww_ls_st, Qwwf, Qwwf_0,
                    Tcs_re, Tcs_re_0, Tcs_sup, Tcs_sup_0, Ths_re, Ths_re_0, Ths_sup, Ths_sup_0, Tww_re, Tww_st,
                    Tww_sup_0, Waterconsumption, locationFinal, mcpcs, mcphs, mcpww, path_temporary_folder,
                    sys_e_cooling, sys_e_heating, waterpeak):
@@ -902,7 +902,7 @@ def results_to_csv(Af, Ealf, Ealf_0, Ealf_tot, Eauxf, Eauxf_tot, Edata, Edata_to
     pd.DataFrame(
         {'DATE': DATE, 'Name': Name, 'Ealf_kWh': Ealf / 1000, 'Eauxf_kWh': Eauxf / 1000, 'Qwwf_kWh': Qwwf / 1000,
          'Qww_kWh': Qww / 1000, 'Qww_tankloss_kWh': Qww_ls_st / 1000, 'Qhs_kWh': Qhs_sen / 1000,
-         'Qhsf_kWh': Qhsf / 1000,
+         'Qhsf_kWh': Qhsf / 1000, 'Qcs_em_ls': -1 * Qcs_em_ls / 1000, 'Qhs_em_ls_kWh': Qhs_em_ls / 1000,
          'Qcs_kWh': -1 * Qcs / 1000, 'Qcsf_kWh': -1 * Qcsf / 1000, 'occ_pax': Occupancy, 'Vw_m3': Waterconsumption,
          'Tshs_C': Ths_sup, 'Trhs_C': Ths_re, 'mcphs_kWC': mcphs, 'mcpww_WC': mcpww * 1000, 'Tscs_C': Tcs_sup,
          'Trcs_C': Tcs_re, 'mcpcs_kWC': mcpcs, 'Qcdataf_kWh': Qcdata / 1000, 'Tsww_C': Tww_sup_0, 'Trww_C': Tww_re,
