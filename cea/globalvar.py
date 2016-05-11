@@ -56,3 +56,6 @@ class GlobalVariables(object):
         self.models = {'calc-thermal-loads': functions.CalcThermalLoads}
         #self.models = {'calc-thermal-loads': cv1.CalcThermalLoads_tcorr_factor}
         #self.models = {'calc-thermal-loads': cv1.CalcThermalLoads_tcorr}
+
+    def log(self, msg, **kwargs):
+        print msg % kwargs
