@@ -292,11 +292,14 @@ def calc_Qem_ls_f(tHset_corr, tCset_corr, tintH_set, tintC_set, Qhs_sen, Qcs_sen
     correction factor for the heating and cooling setpoints. extracted from EN 15316-2"""
     Qem_hs_ls = 0
     Qem_cs_ls = 0
-    if Flag == False and Qhs_sen != 0:
-        Qem_hs_ls = Qhs_sen*(tHset_corr/(tintH_set+tHset_corr-te))  #heating emission heat loss
-    elif Flag == True and Qcs_sen != 0:
-        delta_e_sol = 12  # emperature fluctuation from solar and internal gain for office (cooling only activated in office)
-        Qem_cs_ls = Qcs_sen*(tCset_corr/(tintC_set+tCset_corr+delta_e_sol-te)) # cooling emission heat loss
+    delta_e_sol = 12
+    t_hs_ctr = tintH_set - te
+    t_cs_ctr = tintC_set - delta_e_sol - te
+    if Flag == False and Qhs_sen != 0 and t_hs_ctr!=0:
+        Qem_hs_ls = Qhs_sen*(tHset_corr/(tintH_set-te))  #heating emission heat loss
+    elif Flag == True and Qcs_sen != 0 and t_cs_ctr!=0:
+        #delta_e_sol = 12  # emperature fluctuation from solar and internal gain for office (cooling only activated in office)
+        Qem_cs_ls = Qcs_sen*(tCset_corr/(tintC_set-delta_e_sol-te)) # cooling emission heat loss
 
     return Qem_hs_ls, Qem_cs_ls
 
