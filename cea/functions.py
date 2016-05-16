@@ -287,18 +287,17 @@ def calc_tHC_corr(SystemH,SystemC,sys_e_ctrl):
 
     return tHC_corr[0], tHC_corr[1]
 
-def calc_Qem_ls_f(tHset_corr, tCset_corr, tintH_set, tintC_set, Qhs_sen, Qcs_sen, te, Flag):
+def calc_Qem_ls_factor(tHset_corr, tCset_corr, tintH_set, tintC_set, Qhs_sen, Qcs_sen, te, Flag):
     """model of losses in the emission and control system for space heating and cooling.
     correction factor for the heating and cooling setpoints. extracted from EN 15316-2"""
     Qem_hs_ls = 0
     Qem_cs_ls = 0
-    delta_e_sol = 12
+    delta_e_sol = 12 # temperature fluctuation from solar and internal gain for office (cooling only activated in office)
     t_hs_ctr = tintH_set - te
     t_cs_ctr = tintC_set - delta_e_sol - te
     if Flag == False and Qhs_sen != 0 and t_hs_ctr!=0:
         Qem_hs_ls = Qhs_sen*(tHset_corr/(tintH_set-te))  #heating emission heat loss
     elif Flag == True and Qcs_sen != 0 and t_cs_ctr!=0:
-        #delta_e_sol = 12  # emperature fluctuation from solar and internal gain for office (cooling only activated in office)
         Qem_cs_ls = Qcs_sen*(tCset_corr/(tintC_set-delta_e_sol-te)) # cooling emission heat loss
 
     return Qem_hs_ls, Qem_cs_ls
@@ -477,6 +476,7 @@ def CalcThermalLoads(Name, prop_occupancy, prop_architecture, prop_thermal, prop
     Aef = prop_RC_model.Aef
     sys_e_heating = prop_HVAC.type_hs
     sys_e_cooling = prop_HVAC.type_cs
+    sys_e_ctrl = prop_HVAC.type_ctrl     #room temperature control type
 
     # calculate schedule and variables
     ta_hs_set, ta_cs_set, people, ve, q_int, Eal_nove, Eprof, Edataf, Qcdataf, Qcrefrif, vww, vw, X_int, hour_day = calc_mixed_schedule(Profiles,Profiles_names,prop_occupancy)
@@ -599,6 +599,8 @@ def CalcThermalLoads(Name, prop_occupancy, prop_architecture, prop_thermal, prop
             # Calculate new sensible loads with HVAC systems incl. recovery.
             if sys_e_heating != 'T3':
                 Qhs_sen_incl_em_ls[k] = Results1[2]
+            if sys_e_cooling != 'T3':
+                Qcs_sen_incl_em_ls[k] = Results1[3]
             if sys_e_cooling == 'T0':
                 Qcs_sen_incl_em_ls[k] = 0
             if sys_e_heating == 'T3' or sys_e_cooling == 'T3':
@@ -610,7 +612,6 @@ def CalcThermalLoads(Name, prop_occupancy, prop_architecture, prop_thermal, prop
                 t5_1 = t5[k]
                 if sys_e_heating == 'T3':
                     Qhs_sen_incl_em_ls[k] = temporal_Qhs
-                    Qhs_sen[k] = temporal_Qhs - Qhs_em_ls[k]
                 if sys_e_cooling == 'T3':
                     Qcs_sen_incl_em_ls[k] = temporal_Qcs
 
@@ -624,6 +625,7 @@ def CalcThermalLoads(Name, prop_occupancy, prop_architecture, prop_thermal, prop
                                                          gv.D, Y[0], sys_e_heating, sys_e_cooling, gv.Bf, Lv)         
                 
         # Calc requirements of generation systems (both cooling and heating do not have a storage):
+        Qhs = Qhs_sen_incl_em_ls - Qhs_em_ls
         Qhsf = Qhs_sen_incl_em_ls + Qhs_d_ls   # no latent is considered because it is already added as electricity from the adiabatic system.
         Qcs = (Qcs_sen_incl_em_ls - Qcs_em_ls) + Qcs_lat
         Qcsf = Qcs + Qcs_em_ls + Qcs_d_ls
@@ -675,7 +677,7 @@ def CalcThermalLoads(Name, prop_occupancy, prop_architecture, prop_thermal, prop
         Ths_sup_0 = Ths_re_0 = Tcs_re_0 = Tcs_sup_0 = Tww_sup_0 = 0
         #arrays
         Occupancy = Eauxf = Waterconsumption = np.zeros(8760)
-        Qwwf = Qww = Qhs_sen = Qhsf = Qcs_sen = Qcs = Qcsf = Qcdata = Qcrefri = Qd = Qc = Qww_ls_st = np.zeros(8760)
+        Qwwf = Qww = Qhsf = Qcs = QHC_sen = Qhs = Qcsf = Qcdata = Qcrefri = Qd = Qc = Qww_ls_st = np.zeros(8760)
         Ths_sup = Ths_re = Tcs_re = Tcs_sup = mcphs = mcpcs = mcpww = Vww = Tww_re = Tww_st = uncomfort = np.zeros(8760) # in C
 
     # calc electrical loads
@@ -684,11 +686,10 @@ def CalcThermalLoads(Name, prop_occupancy, prop_architecture, prop_thermal, prop
 
     # write results to csv
     results_to_csv(Af, Ealf, Ealf_0, Ealf_tot, Eauxf, Eauxf_tot, Edata, Edata_tot, Epro, Epro_tot, Name, Occupancy,
-                   Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qhs_sen, Qhsf, Qhsf_0, Qww, Qww_ls_st, Qwwf, Qwwf_0,
+                   Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qhs, Qhsf, Qhsf_0, QHC_sen, Qww, Qww_ls_st, Qwwf, Qwwf_0,
                    Tcs_re, Tcs_re_0, Tcs_sup, Tcs_sup_0, Ths_re, Ths_re_0, Ths_sup, Ths_sup_0, Tww_re, Tww_st,
                    Tww_sup_0, Waterconsumption, locationFinal, mcpcs, mcphs, mcpww, path_temporary_folder,
                    sys_e_cooling, sys_e_heating, waterpeak)
-
     return
 
 
@@ -873,7 +874,7 @@ def calc_temperatures_emission_systems(Qcsf, Qcsf_0, Qhsf, Qhsf_0, Ta, Ta_re_cs,
 
 
 def results_to_csv(Af, Ealf, Ealf_0, Ealf_tot, Eauxf, Eauxf_tot, Edata, Edata_tot, Epro, Epro_tot, Name, Occupancy,
-                   Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qhs_sen, Qhs_em_ls, Qcs_em_ls, Qhsf, Qhsf_0, QHC_sen, Qww, Qww_ls_st, Qwwf, Qwwf_0,
+                   Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qhs, Qhsf, Qhsf_0, QHC_sen, Qww, Qww_ls_st, Qwwf, Qwwf_0,
                    Tcs_re, Tcs_re_0, Tcs_sup, Tcs_sup_0, Ths_re, Ths_re_0, Ths_sup, Ths_sup_0, Tww_re, Tww_st,
                    Tww_sup_0, Waterconsumption, locationFinal, mcpcs, mcphs, mcpww, path_temporary_folder,
                    sys_e_cooling, sys_e_heating, waterpeak):
@@ -883,7 +884,7 @@ def results_to_csv(Af, Ealf, Ealf_0, Ealf_tot, Eauxf, Eauxf_tot, Edata, Edata_to
     # compute totals heating loads loads in MW
     if sys_e_heating != 'T0':
         Qhsf_tot = Qhsf.sum() / 1000000
-        Qhs_tot = Qhs_sen.sum() / 1000000
+        Qhs_tot = Qhs.sum() / 1000000
         Qwwf_tot = Qwwf.sum() / 1000000
         Qww_tot = Qww.sum() / 1000000
     else:
@@ -903,14 +904,12 @@ def results_to_csv(Af, Ealf, Ealf_0, Ealf_tot, Eauxf, Eauxf_tot, Edata, Edata_to
     DATE = pd.date_range('1/1/2010', periods=8760, freq='H')
     pd.DataFrame(
         {'DATE': DATE, 'Name': Name, 'Ealf_kWh': Ealf / 1000, 'Eauxf_kWh': Eauxf / 1000, 'Qwwf_kWh': Qwwf / 1000,
-         'Qww_kWh': Qww / 1000, 'Qww_tankloss_kWh': Qww_ls_st / 1000, 'Qhs_kWh': Qhs_sen / 1000,
-         'Qhsf_kWh': Qhsf / 1000, 'Qcs_em_ls': -1 * Qcs_em_ls / 1000, 'Qhs_em_ls_kWh': Qhs_em_ls / 1000,
-         'Qcs_kWh': -1 * Qcs / 1000, 'Qcsf_kWh': -1 * Qcsf / 1000, 'QHC_sen_kWh': QHC_sen / 1000, 'occ_pax': Occupancy, 'Vw_m3': Waterconsumption,
-         'Tshs_C': Ths_sup, 'Trhs_C': Ths_re, 'mcphs_kWC': mcphs, 'mcpww_WC': mcpww * 1000, 'Tscs_C': Tcs_sup,
-         'Trcs_C': Tcs_re, 'mcpcs_kWC': mcpcs, 'Qcdataf_kWh': Qcdata / 1000, 'Tsww_C': Tww_sup_0, 'Trww_C': Tww_re,
-         'Tww_tank_C': Tww_st, 'Ef_kWh': (Ealf + Eauxf + Epro) / 1000, 'Epro_kWh': Epro / 1000,
-         'Qcref_kWh': Qcrefri / 1000,
-         'Edataf_kWh': Edata / 1000, 'QHf_kWh': (Qwwf + Qhsf) / 1000,
+         'Qww_kWh': Qww / 1000, 'Qww_tankloss_kWh': Qww_ls_st / 1000, 'Qhs_kWh': Qhs / 1000, 'Qhsf_kWh': Qhsf / 1000,
+         'Qcs_kWh': -1 * Qcs / 1000, 'Qcsf_kWh': -1 * Qcsf / 1000, 'QHC_sen_kWh': QHC_sen / 1000, 'occ_pax': Occupancy,
+         'Vw_m3': Waterconsumption, 'Tshs_C': Ths_sup, 'Trhs_C': Ths_re, 'mcphs_kWC': mcphs, 'mcpww_WC': mcpww * 1000,
+         'Tscs_C': Tcs_sup, 'Trcs_C': Tcs_re, 'mcpcs_kWC': mcpcs, 'Qcdataf_kWh': Qcdata / 1000, 'Tsww_C': Tww_sup_0,
+         'Trww_C': Tww_re, 'Tww_tank_C': Tww_st, 'Ef_kWh': (Ealf + Eauxf + Epro) / 1000, 'Epro_kWh': Epro / 1000,
+         'Qcref_kWh': Qcrefri / 1000, 'Edataf_kWh': Edata / 1000, 'QHf_kWh': (Qwwf + Qhsf) / 1000,
          'QCf_kWh': (-1 * Qcsf + Qcdata + Qcrefri) / 1000}).to_csv(locationFinal + '\\' + Name + '.csv',
                                                                    index=False, float_format='%.2f')
     # print peaks in kW and totals in MWh, temperature peaks in C

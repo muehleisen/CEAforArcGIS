@@ -118,7 +118,7 @@ def CalcThermalLoads_tcorr_factor(Name, prop_occupancy, prop_architecture, prop_
 
 
             # losses in the emission/control system
-            Qhs_em_ls[k], Qcs_em_ls[k] = f.calc_Qem_ls_f(tHset_corr, tCset_corr, ta_hs_set[k], ta_cs_set[k], Qhs_sen[k],
+            Qhs_em_ls[k], Qcs_em_ls[k] = f.calc_Qem_ls_factor(tHset_corr, tCset_corr, ta_hs_set[k], ta_cs_set[k], Qhs_sen[k],
                                                      Qcs_sen[k], T_ext[k], Flag_season)
             if Qcs_em_ls[k] > 0:
                 Qcs_em_ls[k] = 0
@@ -143,7 +143,6 @@ def CalcThermalLoads_tcorr_factor(Name, prop_occupancy, prop_architecture, prop_
                 t5_1 = t5[k]
                 if sys_e_heating == 'T3':
                     Qhs_sen_incl_em_ls[k] = temporal_Qhs
-                    Qhs_sen[k] = temporal_Qhs - Qhs_em_ls[k]
                 if sys_e_cooling == 'T3':
                     Qcs_sen_incl_em_ls[k] = temporal_Qcs
 
@@ -162,6 +161,7 @@ def CalcThermalLoads_tcorr_factor(Name, prop_occupancy, prop_architecture, prop_
                                                     gv.D, Y[0], sys_e_heating, sys_e_cooling, gv.Bf, Lv)
 
         # Calc requirements of generation systems (both cooling and heating do not have a storage):
+        Qhs = Qhs_sen_incl_em_ls - Qhs_em_ls
         Qhsf = Qhs_sen_incl_em_ls + Qhs_d_ls   # no latent is considered because it is already added as electricity from the adiabatic system.
         Qcs = (Qcs_sen_incl_em_ls - Qcs_em_ls) + Qcs_lat
         Qcsf = Qcs + Qcs_em_ls + Qcs_d_ls
@@ -224,7 +224,7 @@ def CalcThermalLoads_tcorr_factor(Name, prop_occupancy, prop_architecture, prop_
         Ths_sup_0 = Ths_re_0 = Tcs_re_0 = Tcs_sup_0 = Tww_sup_0 = 0
         # arrays
         Occupancy = Eauxf = Waterconsumption = np.zeros(8760)
-        Qwwf = Qww = Qhs_sen = Qhsf = Qcs_sen = Qcs = Qhs_em_ls = Qcs_em_ls = QHC_sen = Qcsf = Qcdata = Qcrefri = Qd = Qc = Qww_ls_st = np.zeros(8760)
+        Qwwf = Qww = Qhs_sen = Qhsf = Qcs_sen = Qcs = Qhs = Qhs_em_ls = Qcs_em_ls = QHC_sen = Qcsf = Qcdata = Qcrefri = Qd = Qc = Qww_ls_st = np.zeros(8760)
         Ths_sup = Ths_re = Tcs_re = Tcs_sup = mcphs = mcpcs = mcpww = Vww = Tww_re = Tww_st = uncomfort = np.zeros(
         8760)  # in C
 
@@ -234,11 +234,11 @@ def CalcThermalLoads_tcorr_factor(Name, prop_occupancy, prop_architecture, prop_
 
     # write results to csv
     f.results_to_csv(Af, Ealf, Ealf_0, Ealf_tot, Eauxf, Eauxf_tot, Edata, Edata_tot, Epro, Epro_tot, Name, Occupancy,
-                     Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qhs_sen, Qhs_em_ls, Qcs_em_ls, Qhsf, Qhsf_0,QHC_sen, Qww,
-                     Qww_ls_st, Qwwf, Qwwf_0,
-                     Tcs_re, Tcs_re_0, Tcs_sup, Tcs_sup_0, Ths_re, Ths_re_0, Ths_sup, Ths_sup_0, Tww_re, Tww_st,
-                     Tww_sup_0, Waterconsumption, locationFinal, mcpcs, mcphs, mcpww, path_temporary_folder,
-                     sys_e_cooling, sys_e_heating, waterpeak)
+                   Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qcs_sen, Qhs_sen, Qhs, Qhs_em_ls, Qcs_em_ls, Qhsf,
+                   Qhsf_0, QHC_sen, Qww, Qww_ls_st, Qwwf, Qwwf_0,
+                   Tcs_re, Tcs_re_0, Tcs_sup, Tcs_sup_0, Ths_re, Ths_re_0, Ths_sup, Ths_sup_0, Tww_re, Tww_st,
+                   Tww_sup_0, Waterconsumption, locationFinal, mcpcs, mcphs, mcpww, path_temporary_folder,
+                   sys_e_cooling, sys_e_heating, waterpeak)
 
     return
 
@@ -400,7 +400,6 @@ def CalcThermalLoads_tcorr(Name, prop_occupancy, prop_architecture, prop_thermal
                 t5_1 = t5[k]
                 if sys_e_heating == 'T3':
                     Qhs_sen_incl_em_ls[k] = temporal_Qhs
-                    Qhs_sen[k] = temporal_Qhs - Qhs_em_ls[k]
                 if sys_e_cooling == 'T3':
                     Qcs_sen_incl_em_ls[k] = temporal_Qcs
 
@@ -416,6 +415,7 @@ def CalcThermalLoads_tcorr(Name, prop_occupancy, prop_architecture, prop_thermal
                                                     gv.D, Y[0], sys_e_heating, sys_e_cooling, gv.Bf, Lv)
 
         # Calc requirements of generation systems (both cooling and heating do not have a storage):
+        Qhs = Qhs_sen_incl_em_ls - Qhs_em_ls
         Qhsf = Qhs_sen_incl_em_ls + Qhs_d_ls  # no latent is considered because it is already added as electricity from the adiabatic system.
         Qcs = (Qcs_sen_incl_em_ls - Qcs_em_ls) + Qcs_lat
         Qcsf = Qcs + Qcs_em_ls + Qcs_d_ls
@@ -466,7 +466,7 @@ def CalcThermalLoads_tcorr(Name, prop_occupancy, prop_architecture, prop_thermal
         Ths_sup_0 = Ths_re_0 = Tcs_re_0 = Tcs_sup_0 = Tww_sup_0 = 0
         # arrays
         Occupancy = Eauxf = Waterconsumption = np.zeros(8760)
-        Qwwf = Qww = Qhs_sen = Qhsf = Qcs_sen = Qcs = Qhs_em_ls = Qcs_em_ls = Qcsf = Qcdata = Qcrefri = Qd = Qc = Qww_ls_st = np.zeros(8760)
+        Qwwf = Qww = Qhs_sen = Qhsf = Qcs_sen = Qcs = Qhs = QHC_sen = Qhs_em_ls = Qcs_em_ls = Qcsf = Qcdata = Qcrefri = Qd = Qc = Qww_ls_st = np.zeros(8760)
         Ths_sup = Ths_re = Tcs_re = Tcs_sup = mcphs = mcpcs = mcpww = Vww = Tww_re = Tww_st = uncomfort = np.zeros(
         8760)  # in C
 
@@ -476,10 +476,10 @@ def CalcThermalLoads_tcorr(Name, prop_occupancy, prop_architecture, prop_thermal
 
     # write results to csv
     f.results_to_csv(Af, Ealf, Ealf_0, Ealf_tot, Eauxf, Eauxf_tot, Edata, Edata_tot, Epro, Epro_tot, Name, Occupancy,
-               Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qhs_sen, Qhs_em_ls, Qcs_em_ls, Qhsf, Qhsf_0, Qww,
-               Qww_ls_st, Qwwf, Qwwf_0,
-               Tcs_re, Tcs_re_0, Tcs_sup, Tcs_sup_0, Ths_re, Ths_re_0, Ths_sup, Ths_sup_0, Tww_re, Tww_st,
-               Tww_sup_0, Waterconsumption, locationFinal, mcpcs, mcphs, mcpww, path_temporary_folder,
-               sys_e_cooling, sys_e_heating, waterpeak)
+                     Occupants, Qcdata, Qcrefri, Qcs, Qcsf, Qcsf_0, Qcs_sen, Qhs_sen, Qhs, Qhs_em_ls, Qcs_em_ls, Qhsf,
+                     Qhsf_0, QHC_sen, Qww, Qww_ls_st, Qwwf, Qwwf_0,
+                     Tcs_re, Tcs_re_0, Tcs_sup, Tcs_sup_0, Ths_re, Ths_re_0, Ths_sup, Ths_sup_0, Tww_re, Tww_st,
+                     Tww_sup_0, Waterconsumption, locationFinal, mcpcs, mcphs, mcpww, path_temporary_folder,
+                     sys_e_cooling, sys_e_heating, waterpeak)
 
     return
