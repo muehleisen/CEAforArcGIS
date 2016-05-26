@@ -39,7 +39,7 @@ class InputLocator(object):
 
     def get_building_geometry(self):
         """scenario/1-inputs/1-buildings/building_geometry.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'geometry.dbf')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'zone.dbf')
 
     def get_building_supply(self):
         """scenario/1-inputs/1-buildings/building_supply.shp"""
@@ -65,9 +65,9 @@ class InputLocator(object):
         """scenario/1-inputs/1-buildings/building_architecture.shp"""
         return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'architecture.dbf')
 
-    def get_zone_of_study(self):
-        """scenario/1-inputs/1-buildings/zone_of_study.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'zone_of_study.shp')
+    def get_district(self):
+        """scenario/1-inputs/1-buildings/district.shp"""
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'district.shp')
 
     def get_terrain(self):
         """scenario/1-inputs/2-terrain/terrain - (path to Digital Elevation Map)"""
