@@ -8,9 +8,9 @@ J. A. Fonseca  script development          22.03.15
 """
 from __future__ import division
 import pandas as pd
-import os
 import numpy as np
-import globalvar
+import dbfreader
+import time
 from geopandas import GeoDataFrame as gpdf
 import inputlocator
 
@@ -50,15 +50,11 @@ def properties(locator, prop_thermal_flag, prop_architecture_flag,
     - building_loads: .shp
         describes the queried thermal properties of buildings
     """
-
+    t0 = time.time()
     # get occupancy and age files
-    building_occupancy_df = gpdf.from_file(locator.get_building_occupancy()).drop('geometry', axis=1)
+    building_occupancy_df = dbfreader.dbf2df(locator.get_building_occupancy())
     list_uses = list(building_occupancy_df.drop(['PFloor','Name'], axis=1).columns) #parking excluded in U-Values
-    building_age_df = gpdf.from_file(locator.get_building_age())
-
-    # prepare shapefile to store results (a shapefile with only names of buildings
-    fields_drop = ['envelope', 'roof', 'windows', 'partitions', 'basement', 'HVAC', 'built']  # FIXME: this hardcodes the field names!!
-    names_shp = gpdf.from_file(locator.get_building_age()).drop(fields_drop, axis=1)
+    building_age_df = dbfreader.dbf2df(locator.get_building_age())
 
     # define main use:
     building_occupancy_df['mainuse'] = calc_mainuse(building_occupancy_df, list_uses)
@@ -94,13 +90,9 @@ def properties(locator, prop_thermal_flag, prop_architecture_flag,
         fields4 = ['Name','U_base']
         prop_thermal_df = df[fields].merge(df2[fields2], on='Name').merge(df3[fields3],on='Name').merge(df4[fields4],on='Name')
 
-        # write to shapefile
-        prop_thermal_df_merged = names_shp.merge(prop_thermal_df, on="Name")
-        fields = ['U_base', 'U_roof', 'U_win', 'U_wall', 'th_mass', 'Es', 'Hs']
-        prop_thermal_shp = names_shp.copy()
-        for field in fields:
-            prop_thermal_shp[field] = prop_thermal_df_merged[field].copy()
-        prop_thermal_shp.to_file(locator.get_building_thermal())
+        # write to database
+        fields = ['Name', 'U_base', 'U_roof', 'U_win', 'U_wall', 'Es', 'Hs', 'th_mass']
+        dbfreader.df2dbf(prop_thermal_df[fields], locator.get_building_thermal())
 
     # get properties about the construction and architecture
     if prop_architecture_flag:
@@ -111,14 +103,9 @@ def properties(locator, prop_thermal_flag, prop_architecture_flag,
         # define architectural characteristics
         prop_architecture_df = categories_df.merge(architecture_DB, left_on='cat_architecture', right_on='Code')
 
-        # write to shapefile
-        prop_architecture_df_merged = names_shp.merge(prop_architecture_df, on="Name")
-        fields = ['win_wall', 'type_shade', 'Occ_m2p', 'n50', 'win_op', 'f_cros']  # added ventilation properties to architecture
-        prop_architecture_shp = names_shp.copy()
-        for field in fields:
-            prop_architecture_shp[field] = prop_architecture_df_merged[field].copy()
-        prop_architecture_shp.to_file(locator.get_building_architecture())
-
+        # write to database
+        fields = ['Name', 'win_wall', 'type_shade', 'Occ_m2p', 'n50', 'win_op', 'f_cros']  # added ventilation properties to architecture
+        dbfreader.df2dbf(prop_architecture_df[fields], locator.get_building_architecture())
 
     # get properties about types of HVAC systems
     if prop_hvac_flag:
@@ -129,13 +116,9 @@ def properties(locator, prop_thermal_flag, prop_architecture_flag,
         # define HVAC systems types
         prop_HVAC_df = categories_df.merge(HVAC_DB, left_on='cat_HVAC', right_on='Code')
 
-        # write to shapefile
-        prop_HVAC_df_merged = names_shp.merge(prop_HVAC_df, on="Name")
-        fields = ['type_cs', 'type_hs', 'type_dhw', 'type_ctrl']
-        prop_HVAC_shp = names_shp.copy()
-        for field in fields:
-            prop_HVAC_shp[field] = prop_HVAC_df_merged[field].copy()
-        prop_HVAC_shp.to_file(locator.get_building_hvac())
+        # write to database
+        fields = ['Name', 'type_cs', 'type_hs', 'type_dhw', 'type_ctrl']
+        dbfreader.df2dbf(prop_HVAC_df[fields], locator.get_building_hvac())
 
     if prop_comfort_flag:
         comfort_DB = get_database(locator.get_archetypes_properties(), 'INDOOR_COMFORT')
@@ -143,28 +126,21 @@ def properties(locator, prop_thermal_flag, prop_architecture_flag,
         # define comfort
         prop_comfort_df = categories_df.merge(comfort_DB, left_on='mainuse', right_on='Code')
 
-        # write to shapefile
-        prop_comfort_df_merged = names_shp.merge(prop_comfort_df, on="Name")
-        fields = ['Tcs_set_C', 'Ths_set_C','Tcs_setb_C', 'Ths_setb_C', 'Ve_lps']
-        prop_comfort_shp = names_shp.copy()
-        for field in fields:
-            prop_comfort_shp[field] = prop_comfort_df_merged[field].copy()
-        prop_comfort_shp.to_file(locator.get_building_comfort())
+        # write to database
+        fields = ['Name', 'Tcs_set_C', 'Ths_set_C','Tcs_setb_C', 'Ths_setb_C', 'Ve_lps']
+        dbfreader.df2dbf(prop_comfort_df[fields], locator.get_building_comfort())
 
     if prop_internal_loads_flag:
         internal_DB = get_database(locator.get_archetypes_properties(), 'INTERNAL_LOADS')
 
-        # define comfort
+        # define internal loads
         prop_internal_df = categories_df.merge(internal_DB, left_on='mainuse', right_on='Code')
 
-        # write to shapefile
-        prop_internal_df_merged = names_shp.merge(prop_internal_df, on="Name")
-        fields = ['Qs_Wp', 'X_ghp', 'Ea_Wm2', 'El_Wm2',	'Epro_Wm2',	'Ere_Wm2', 'Ed_Wm2', 'Vww_lpd',	'Vw_lpd']
-        prop_internal_shp = names_shp.copy()
-        for field in fields:
-            prop_internal_shp[field] = prop_internal_df_merged[field].copy()
-        prop_internal_shp.to_file(locator.get_building_internal())
+        # write to database
+        fields = ['Name', 'Qs_Wp', 'X_ghp', 'Ea_Wm2', 'El_Wm2',	'Epro_Wm2',	'Ere_Wm2', 'Ed_Wm2', 'Vww_lpd',	'Vw_lpd']
+        dbfreader.df2dbf(prop_internal_df[fields], locator.get_building_internal())
 
+    print 'finished after ', time.time() - t0, 'seconds'
 
 def calc_mainuse(uses_df, uses):
 

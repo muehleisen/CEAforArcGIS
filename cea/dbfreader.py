@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 def df2dbf(df, dbf_path, my_specs=None):
+
     if my_specs:
         specs = my_specs
     else:
@@ -20,15 +21,18 @@ def df2dbf(df, dbf_path, my_specs=None):
                      np.int64: ('N', 20, 0),
                      float: ('N', 36, 15),
                      np.float64: ('N', 36, 15),
+                     unicode: ('C', 14, 0),
                      str: ('C', 14, 0)
                      }
         types = [type(df[i].iloc[0]) for i in df.columns]
         specs = [type2spec[t] for t in types]
-    db = ps.open(dbf_path, 'w')
+    db = ps.open(dbf_path, 'w', 'dbf')
     db.header = list(df.columns)
     db.field_spec = specs
-    for i, row in df.T.iteritems():
-        db.write(row)
+    df_transpose = df.T
+    length = len(df_transpose.columns)
+    for row in range(length):
+        db.write(df_transpose[row])
     db.close()
     return dbf_path
 

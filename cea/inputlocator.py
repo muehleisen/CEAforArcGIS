@@ -31,43 +31,39 @@ class InputLocator(object):
 
     def get_building_age(self):
         """scenario/1-inputs/1-buildings/building_age.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_age.shp')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'age.dbf')
 
     def get_building_occupancy(self):
         """scenario/1-inputs/1-buildings/building_occupancy.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_occupancy.shp')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'occupancy.dbf')
 
     def get_building_geometry(self):
         """scenario/1-inputs/1-buildings/building_geometry.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_geometry.shp')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'geometry.dbf')
 
     def get_building_supply(self):
         """scenario/1-inputs/1-buildings/building_supply.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_supply.shp')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'supply_systems.dbf')
 
     def get_building_thermal(self):
         """scenario/1-inputs/1-buildings/building_thermal.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_thermal.shp')
-
-    def get_building_thermal(self):
-        """scenario/1-inputs/1-buildings/building_thermal.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_thermal.shp')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'thermal_properties.dbf')
 
     def get_building_internal(self):
         """scenario/1-inputs/1-buildings/building_thermal.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_internal.shp')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'internal_loads.dbf')
 
     def get_building_comfort(self):
         """scenario/1-inputs/1-buildings/building_thermal.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_comfort.shp')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'indoor_comfort.dbf')
 
     def get_building_hvac(self):
         """scenario/1-inputs/1-buildings/building_HVAC.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_HVAC.shp')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'technical_systems.dbf')
 
     def get_building_architecture(self):
         """scenario/1-inputs/1-buildings/building_architecture.shp"""
-        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'building_architecture.shp')
+        return os.path.join(self.scenario_path, '1-inputs', '1-buildings', 'architecture.dbf')
 
     def get_zone_of_study(self):
         """scenario/1-inputs/1-buildings/zone_of_study.shp"""
