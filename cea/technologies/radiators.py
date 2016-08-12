@@ -9,15 +9,6 @@ from __future__ import division
 from scipy.optimize import newton as opt_newton
 import scipy
 
-__author__ = "Jimeno A. Fonseca"
-__copyright__ = "Copyright 2015, Architecture and Building Systems - ETH Zurich"
-__credits__ = ["Jimeno A. Fonseca"]
-__license__ = "MIT"
-__version__ = "0.1"
-__maintainer__ = "Daren Thomas"
-__email__ = "thomas@arch.ethz.ch"
-__status__ = "Production"
-
 
 def calc_radiator(Qh, tair, Qh0, tair0, tsh0, trh0):
     nh = 0.3 #radiator constant
@@ -39,9 +30,9 @@ def calc_radiator(Qh, tair, Qh0, tair0, tsh0, trh0):
         result = opt_newton(fh, trh0, maxiter=100, tol=0.01) - 273
         trh = result.real
         tsh = trh + k2
-        mCw = Qh / (tsh - trh)
+        mCw = Qh / (tsh - trh) / 1000
     else:
         mCw = 0
         tsh = 0
         trh = 0
-    return tsh, trh, mCw # C, C, W/C
+    return tsh, trh, mCw

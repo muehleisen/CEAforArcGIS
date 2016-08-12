@@ -13,7 +13,7 @@ import globalVar as gV
 import numpy as np
 import pandas as pd
 
-from contributions.Legacy.moo import resources, technologies
+from contributions.Legacy.MOO import resources, technologies
 
 reload(gV)
 reload(invC)
