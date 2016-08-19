@@ -30,38 +30,73 @@ PV electricity generation
 
 """
 
-def calc_PV(locator, sensors_data, radiation, latitude, longitude, year, gv, weather_path):
+def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv, weather_path):
 
     # weather data
     weather_data = epwreader.epw_reader(weather_path)
 
     # solar properties
     g, Sz, Az, ha, trr_mean, worst_sh, worst_Az = solar_equations.calc_sun_properties(latitude, longitude, weather_data,
-                                                                                      gv)
+                                                                                       gv)
+
+    #
+    # select sensor point with sufficient solar radiation
+    sensor_names_roof, sensor_names_wall = calc_radiation_sensor_selection(weather_data, radiation_csv, metadata_csv, gv)
+
+
+    # metadata_clean = metadata[metadata["total"] > Min_Isol]
+    # radiation_clean = radiation.loc[radiation['sensor_id'].isin(metadata_clean.sensor_id)]
+    #
+    # # get only datapoints with aminimum 50 W/m2 of radiation for energy production
+    # radiation_clean[radiation_clean[:] <= 50] = 0
+    #
+    # calculate optimal angle and tilt for panels
+    #optimal_angle_and_tilt(metadata, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
+    #                        gv.module_lenght_PV, gv.angle_north, Min_Isol, Max_Isol)
+    #
+    # Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(radiation_clean, metadata_clean)
+    #
+    # results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
+    #                                         prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
+    #
+    # Final.to_csv(locator.PV_result(), index=True, float_format='%.2f')
+    return
+
+def calc_radiation_sensor_selection(weather_data, radiation_csv, metadata_csv, gv):
+    # get max radiation potential from global horizontal radiation
+    yearly_horizontal_rad = weather_data.glohorrad_Whm2.sum()  # [Wh/m2/year]
 
     # read radiation file
-    hourly_data = pd.read_csv(radiation)
+    sensors_rad = pd.read_csv(radiation_csv)
+    sensors_metadata = pd.read_csv(metadata_csv)
+    # add new row with yearly radiation of each sensor point
+    sensors_rad = sensors_rad.append(sensors_rad.sum(0), ignore_index=True)
+    index_totals = sensors_rad.shape[0] - 1
+    # index_totals = index_totals_0[0] - 1
 
-    # get only datapoints with production beyond min_production
-    Max_Isol = hourly_data.total.max()
-    Min_Isol = Max_Isol * gv.min_production  # 80% of the local average maximum in the area
-    sensors_data_clean = sensors_data[sensors_data["total"] > Min_Isol]
-    radiation_clean = radiation.loc[radiation['sensor_id'].isin(sensors_data_clean.sensor_id)]
+    # get only data points with production beyond min_production
+    max_yearly_radiation = sensors_rad.ix[index_totals].max()  # Maximum solar radiation at each building [Wh/m2/year]
 
-    # get only datapoints with aminimum 50 W/m2 of radiation for energy production
-    radiation_clean[radiation_clean[:] <= 50] = 0
+    min_yearly_production_walls = max_yearly_radiation * gv.min_production * 0.5
+    min_yearly_production_roofs = max_yearly_radiation * gv.min_production
 
-    # calculate optimal angle and tilt for panels
-    optimal_angle_and_tilt(sensors_data, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
-                           gv.module_lenght_PV, gv.angle_north, Min_Isol, Max_Isol)
+    # join metadata names and fac_type
+    face_type = sensors_metadata[['fac_type', 'bui_fac_sen']].set_index('bui_fac_sen').T
+    sensors_rad = sensors_rad.append(face_type, ignore_index=True)
 
-    Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(radiation_clean, sensors_data_clean)
+    sensor_names_selection = sensors_rad.ix[index_totals]
+    sensor_names_faces_types = sensors_rad.ix[index_totals + 1]
 
-    results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
-                                            prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
+    names_roof = sensor_names_faces_types[sensor_names_faces_types == 'roof'].index.values
+    names_walls = sensor_names_faces_types[sensor_names_faces_types == 'wall'].index.values
 
-    Final.to_csv(locator.PV_result(), index=True, float_format='%.2f')
-    return
+    sensor_names_roof = sensor_names_selection[names_roof][
+        sensor_names_selection[names_roof] > min_yearly_production_roofs].index.values
+    sensor_names_wall = sensor_names_selection[names_walls][
+        sensor_names_selection[names_walls] > min_yearly_production_walls].index.values
+    print sensor_names_roof, sensor_names_wall
+    return sensor_names_roof, sensor_names_wall
+
 
 def Calc_pv_generation(type_panel, hourly_radiation, Number_groups, number_points, prop_observers, weather_data,
                        g, Sz, Az, ha, latitude, misc_losses):
@@ -256,14 +291,17 @@ test
 
 def test_photovoltaic():
     import cea.inputlocator
-    locator = cea.inputlocator.InputLocator(r'C:\reference-case\baseline')
+    import cea.globalvar
+
+    locator = cea.inputlocator.InputLocator(r'C:\reference-case-zug\baseline')
     # for the interface, the user should pick a file out of of those in ...DB/Weather/...
     weather_path = locator.get_default_weather()
-    radiation = locator.get_radiation()
+    radiation = locator.get_radiation(building_name='B2368593')
+    radiation_metadata = locator.get_radiation_metadata(building_name='B2368593')
     gv = cea.globalvar.GlobalVariables()
 
-    calc_PV(locator=locator, radiation = radiation, latitude=46.95240555555556, longitude=7.439583333333333, year=2014, gv=gv,
-                             weather_path=weather_path)
+    calc_PV(locator=locator, radiation_csv= radiation, metadata_csv= radiation_metadata, latitude=46.95240555555556, longitude=7.439583333333333, year=2014, gv=gv,
+            weather_path=weather_path)
 
 
 if __name__ == '__main__':

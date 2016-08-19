@@ -149,13 +149,24 @@ class InputLocator(object):
     # OUTPUTS
 
     ##SOLAR-RADIATION
-    def get_radiation(self):
-        """scenario/outputs/data/solar-radiation/radiation.csv"""
-        return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation', 'radiation.csv')
 
     def get_surface_properties(self):
         """scenario/outputs/data/solar-radiation/properties_surfaces.csv"""
         return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation', 'properties_surfaces.csv')
+
+    def get_radiation_metadata(self, building_name):
+        """scenario/2-results/2-demand/1-timeseries/{building_name}.csv"""
+        radiation_results_folder = self.get_radiation_folder()
+        return os.path.join(radiation_results_folder, '%s_metadata.csv' % building_name)
+
+    def get_radiation(self, building_name):
+        """scenario/2-results/2-demand/1-timeseries/{building_name}.csv"""
+        radiation_results_folder = self.get_radiation_folder()
+        return os.path.join(radiation_results_folder, '%s.csv' % building_name)
+
+    def get_radiation_folder(self):
+        """scenario/outputs/data/solar-radiation/radiation.csv"""
+        return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation')
 
     ##DEMAND
     def get_demand_results_folder(self):
