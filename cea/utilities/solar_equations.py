@@ -107,7 +107,7 @@ def calc_sun_properties(latitude, longitude, weather_data, gv):
 
     # solar elevation, azuimuth and values for the 9-3pm period of no shading on the solar solstice
     sun_coords = pyephem(date, latitude, longitude)
-    sun_coords['declination'] = np.vectorize(declination_degree)(date, 365)
+    sun_coords['declination'] = declination_degree(date, 365)
     sun_coords['hour_angle'] = np.vectorize(get_hour_angle)(date, longitude)
     worst_sh = sun_coords['elevation'].loc[gv.worst_hour, 'Sh']
     worst_Az = sun_coords['azimuth'].loc[gv.worst_hour, 'Az']
@@ -150,7 +150,8 @@ def declination_degree(when, TY):
     ----------
     .. [1] http://pysolar.org/
     """
-    return 23.45 * math.sin((2 * math.pi / (TY)) * ((when.utctimetuple().tm_yday) - 81))
+
+    return 23.45 * np.vectorize(math.sin)((2 * math.pi / (TY)) * (when.dayofyear - 81))
 
 
 def get_hour_angle(when, longitude_deg):
