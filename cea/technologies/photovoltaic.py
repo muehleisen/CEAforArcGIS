@@ -128,12 +128,12 @@ def Calc_pv_generation(type_panel, hourly_radiation, Number_groups, number_point
         tilt = radians(tilt_angle) #slope of panel
         teta_z = radians(teta_z) #azimuth of panel
 
-        #calculate angles necesary
+        #calculate effective indicent angles necesary
         teta_vector = np.vectorize(Calc_incidenteangleB)(g_vector, lat, ha_vector, tilt, teta_z)
-        teta_ed, teta_eG  = Calc_diffuseground_comp(tilt)
+        teta_ed, teta_eg  = Calc_diffuseground_comp(tilt)
 
         results = np.vectorize(Calc_Sm_PV)(weather_data.drybulb_C,radiation.I_sol, radiation.I_direct, radiation.I_diffuse, tilt,
-                                              Sz_vector, teta_vector, teta_ed, teta_eG,
+                                              Sz_vector, teta_vector, teta_ed, teta_eg,
                                               n, Pg, K,NOCT,a0,a1,a2,a3,a4,L)
 
 
@@ -147,13 +147,67 @@ def Calc_pv_generation(type_panel, hourly_radiation, Number_groups, number_point
 
 
 def Calc_diffuseground_comp(tilt_radians):
+    """
+
+    Parameters
+    ----------
+    tilt_radians
+
+    Returns
+    -------
+    teta_ed: groups-reflected radiation
+    teta_eg: diffuse radiation
+
+    References
+    ----------
+    Duffie, J. A. and Beckman, W. A. (2013) Radiation Transmission through Glazing: Absorbed Radiation, in
+    Solar Engineering of Thermal Processes, Fourth Edition, John Wiley & Sons, Inc., Hoboken, NJ, USA.
+    doi: 10.1002/9781118671603.ch5
+
+    """
     tilt = degrees(tilt_radians)
     teta_ed = 59.68 - 0.1388 * tilt + 0.001497 * tilt ** 2  # angle in degrees
     teta_eG = 90 - 0.5788 * tilt + 0.002693 * tilt ** 2  # angle in degrees
     return radians(teta_ed), radians(teta_eG)
 
-def Calc_Sm_PV(te, I_sol, I_direct, I_diffuse, tilt, Sz, teta, tetad, tetaeg,
-               n, Pg, K, NOCT, a0, a1, a2, a3, a4, L):  # ha is local solar time
+def Calc_Sm_PV(te, I_sol, I_direct, I_diffuse, tilt, Sz, teta, tetaed, tetaeg,
+               n, Pg, K, NOCT, a0, a1, a2, a3, a4, L):
+    """
+    To calculate the absorbed solar radiation on tilted surface.
+
+    Parameters
+    ----------
+    te
+    I_sol
+    I_direct
+    I_diffuse
+    tilt
+    Sz
+    teta
+    tetaed
+    tetaeg
+    n
+    Pg
+    K
+    NOCT
+    a0
+    a1
+    a2
+    a3
+    a4
+    L
+
+    Returns
+    -------
+
+    References
+    ----------
+    Duffie, J. A. and Beckman, W. A. (2013) Radiation Transmission through Glazing: Absorbed Radiation, in
+    Solar Engineering of Thermal Processes, Fourth Edition, John Wiley & Sons, Inc., Hoboken, NJ, USA.
+    doi: 10.1002/9781118671603.ch5
+
+    """
+    # ha is local solar time
 
 
     # calcualte ratio of beam radiation on a tilted plane
@@ -161,17 +215,20 @@ def Calc_Sm_PV(te, I_sol, I_direct, I_diffuse, tilt, Sz, teta, tetad, tetaeg,
     lim1 = radians(0)
     lim2 = radians(90)
     lim3 = radians(89.999)
+
     if teta < lim1:
         teta = min(lim3, abs(teta))
     if teta >= lim2:
         teta = lim3
+
     if Sz < lim1:
         Sz = min(lim3, abs(Sz))
     if Sz >= lim2:
         Sz = lim3
-    Rb = cos(teta) / cos(Sz)  # teta_z is Zenith angle
+    # Rb: ratio of beam radiation of tilted surface to that on horizontal surface
+    Rb = cos(teta) / cos(Sz)  # Sz is Zenith angle
 
-    # calculate the specific air mass
+    # calculate the specific air mass, m
     m = 1 / cos(Sz)
     M = a0 + a1 * m + a2 * m ** 2 + a3 * m ** 3 + a4 * m ** 4
 
@@ -189,9 +246,9 @@ def Calc_Sm_PV(te, I_sol, I_direct, I_diffuse, tilt, Sz, teta, tetad, tetaeg,
         kteta_B = 0
 
     # angle refractive for diffuse radiation
-    teta_r = asin(sin(tetad) / n)  # in radians
-    part1 = teta_r + tetad
-    part2 = teta_r - tetad
+    teta_r = asin(sin(tetaed) / n)  # in radians
+    part1 = teta_r + tetaed
+    part2 = teta_r - tetaed
     Ta_D = exp((-K * L) / cos(teta_r)) * (
     1 - 0.5 * ((sin(part2) ** 2) / (sin(part1) ** 2) + (tan(part2) ** 2) / (tan(part1) ** 2)))
     kteta_D = Ta_D / Ta_n
@@ -206,7 +263,7 @@ def Calc_Sm_PV(te, I_sol, I_direct, I_diffuse, tilt, Sz, teta, tetad, tetaeg,
 
     # absorbed solar radiation
     S = M * Ta_n * (kteta_B * I_direct * Rb + kteta_D * I_diffuse * (1 + cos(tilt)) / 2 + kteta_eG * I_sol * Pg * (
-    1 - cos(tilt)) / 2)  # in W
+    1 - cos(tilt)) / 2)  # in W/m2
     if S <= 0:  # when points are 0 and too much losses
         S = 0
     # temperature of cell
@@ -215,6 +272,22 @@ def Calc_Sm_PV(te, I_sol, I_direct, I_diffuse, tilt, Sz, teta, tetad, tetaeg,
     return S, Tcell
 
 def Calc_PV_power(S, Tcell, eff_nom, areagroup, Bref,misc_losses):
+    """
+
+    Parameters
+    ----------
+    S: absorbed radiation [W/m2]
+    Tcell: cell temperature [degree]
+    eff_nom
+    areagroup: panel area [m2]
+    Bref
+    misc_losses: expected system loss
+
+    Returns
+    -------
+    P: Power production [kWh]
+
+    """
     P = eff_nom*areagroup*S*(1-Bref*(Tcell-25))*(1-misc_losses)/1000 # Osterwald, 1986) in kWatts
     return P
 

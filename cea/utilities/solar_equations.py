@@ -48,9 +48,29 @@ def _ephem_setup(latitude, longitude, altitude, pressure, temperature):
 
 def pyephem(time, latitude, longitude, altitude=0, pressure=101325,
             temperature=12):
+    """
+    Calculate the solar position using the PyEphem package.
 
-    # Written by Will Holmgren (@wholmgren), University of Arizona, 2014
+    Parameters
+    ----------
+    time: pandas.DatetimeIndex. localized
+    latitude: float
+    longitude: float
+    altitude: float
+    pressure: air pressure [Pa]
+    temperature: air temperature [C]
 
+    Returns
+    -------
+    sun_coords: DataFrame containing columns:
+                apparent_elevation, apparent_azimuth, apparent_zenith, elevation, azimuth, zenith.
+
+    References
+    ----------
+    Written by Will Holmgren (@wholmgren), University of Arizona, 2014
+    """
+
+    # convert localized time to UTC.
     try:
         time_utc = time.tz_convert('UTC')
     except TypeError:
