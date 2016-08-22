@@ -124,10 +124,13 @@ solar properties
 def calc_sun_properties(latitude, longitude, weather_data, gv):
 
     date = pd.date_range(gv.date_start, periods=8760, freq='H')
+    hour_date = date.hour
+    min_date = date.minute
+    day_date = date.dayofyear
 
     # solar elevation, azuimuth and values for the 9-3pm period of no shading on the solar solstice
     sun_coords = pyephem(date, latitude, longitude)
-    sun_coords['declination'] = declination_degree(date, 365)
+    sun_coords['declination'] = declination_degree(day_date, 365)
     sun_coords['hour_angle'] = np.vectorize(get_hour_angle)(date, longitude)
     worst_sh = sun_coords['elevation'].loc[gv.worst_hour, 'Sh']
     worst_Az = sun_coords['azimuth'].loc[gv.worst_hour, 'Az']
@@ -152,13 +155,13 @@ def calc_sunrise(sunrise, Yearsimul, longitude, latitude):
     return sunrise
 
 
-def declination_degree(when, TY):
+def declination_degree(day_date, TY):
     """The declination of the sun is the angle between Earth's equatorial plane and a line
     between the Earth and the sun. It varies between 23.45 degrees and -23.45 degrees,
     hitting zero on the equinoxes and peaking on the solstices.
     Parameters
     ----------
-    when : datetime.datetime
+    day_date : datetime.datetime
         date/time for which to do the calculation
     TY : float
         Total number of days in a year. eg. 365 days per year,(no leap days)
@@ -171,21 +174,21 @@ def declination_degree(when, TY):
     .. [1] http://pysolar.org/
     """
 
-    return 23.45 * np.vectorize(math.sin)((2 * math.pi / (TY)) * (when.dayofyear - 81))
+    return 23.45 * np.vectorize(math.sin)((2 * math.pi / (TY)) * (day_date - 81))
 
 
-def get_hour_angle(when, longitude_deg):
-    solar_time = get_solar_time(longitude_deg, when)
+def get_hour_angle(date, longitude_deg):
+    solar_time = get_solar_time(longitude_deg, date)
     return 15 * (12 - solar_time)
 
 
-def get_solar_time(longitude_deg, when):
+def get_solar_time(longitude_deg, min_date, hour_date, day_date):
     "returns solar time in hours for the specified longitude and time," \
     " accurate only to the nearest minute."
-    when = when.utctimetuple()
+    date = date.utctimetuple()
     return \
         (
-            (when.tm_hour * 60 + when.tm_min + 4 * longitude_deg + equation_of_time(when.tm_yday))
+            (date.tm_hour * 60 + date.tm_min + 4 * longitude_deg + equation_of_time(date.tm_yday))
         /
             60
         )
