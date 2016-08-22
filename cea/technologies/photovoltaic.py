@@ -9,6 +9,7 @@ photovoltaic
 from __future__ import division
 import numpy as np
 import pandas as pd
+import arcpy
 from math import *
 from cea.utilities import epwreader
 from cea.utilities import solar_equations
@@ -34,24 +35,21 @@ def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv,
 
     # weather data
     weather_data = epwreader.epw_reader(weather_path)
+
+
     # solar properties
     g, Sz, Az, ha, trr_mean, worst_sh, worst_Az = solar_equations.calc_sun_properties(latitude, longitude, weather_data,
                                                                                        gv)
     #
     # select sensor point with sufficient solar radiation
-    sensor_names_roof, sensor_names_wall, sensors_rad, sensors_metadata = calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv)
-    radiation_roof_clean = sensors_rad[sensor_names_roof]
-    radiation_wall_clean = sensors_rad[sensor_names_wall]
+    max_yearly_radiation, min_yearly_production, sensors_rad_roof, sensors_rad_wall = calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv)
 
     # get only datapoints with aminimum 50 W/m2 of radiation for energy production
-    radiation_roof_clean[radiation_roof_clean[:] <= 50] = 0
-    radiation_wall_clean[radiation_roof_clean[:] <= 50] = 0
     #radiation_clean = radiation_csv.loc[radiation['sensor_id'].isin(metadata_clean.sensor_id)]
 
-
     # calculate optimal angle and tilt for panels
-    optimal_angle_and_tilt(metadata, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
-                            gv.module_lenght_PV, gv.angle_north, Min_Isol, Max_Isol)
+    optimal_angle_and_tilt(metadata_csv, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
+                            gv.module_lenght_PV, gv.angle_north, min_yearly_production, max_yearly_radiation)
     #
     #Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(radiation_clean, metadata_clean)
     #
@@ -71,13 +69,11 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
     # add new row with yearly radiation of each sensor point
     sensors_rad = sensors_rad.append(sensors_rad.sum(0), ignore_index=True)
     index_totals = sensors_rad.shape[0] - 1
-    # index_totals = index_totals_0[0] - 1
 
     # get only data points with production beyond min_production
     max_yearly_radiation = yearly_horizontal_rad.max()  # Maximum solar radiation at each building [Wh/m2/year]
 
-    min_yearly_production_walls = max_yearly_radiation * gv.min_production * 0.5
-    min_yearly_production_roofs = max_yearly_radiation * gv.min_production
+    min_yearly_production = max_yearly_radiation * gv.min_production
 
     # join metadata names and fac_type
     face_type = sensors_metadata[['fac_type', 'bui_fac_sen']].set_index('bui_fac_sen').T
@@ -90,11 +86,17 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
     names_walls = sensor_names_faces_types[sensor_names_faces_types == 'wall'].index.values
 
     sensor_names_roof = sensor_names_selection[names_roof][
-        sensor_names_selection[names_roof] > min_yearly_production_roofs].index.values
+        sensor_names_selection[names_roof] > min_yearly_production].index.values
     sensor_names_wall = sensor_names_selection[names_walls][
-        sensor_names_selection[names_walls] > min_yearly_production_walls].index.values
+        sensor_names_selection[names_walls] > min_yearly_production].index.values
 
-    return sensor_names_roof, sensor_names_wall, sensors_rad, sensors_metadata
+    sensors_rad_roof = sensors_rad[sensor_names_roof]
+    sensors_rad_wall = sensors_rad[sensor_names_wall]
+
+    sensors_rad_roof[sensors_rad_roof[:] <= 50] = 0
+    sensors_rad_wall[sensors_rad_wall[:] <= 50] = 0
+
+    return max_yearly_radiation, min_yearly_production, sensors_rad_roof, sensors_rad_wall
 
 def calc_radiation_sensor_selection(weather_data, radiation_csv, metadata_csv, gv):
     # read radiation file
@@ -328,8 +330,8 @@ optimal angle and tilt
 
 """
 
-def optimal_angle_and_tilt(observers_all, latitude, worst_sh, worst_Az, transmittivity,
-                           grid_side, module_lenght, angle_north, Min_Isol, Max_Isol):
+def optimal_angle_and_tilt(observers_all, latitude, worst_sh, worst_Az, transmissivity,
+                           grid_side, module_length, angle_north, Min_Isol, Max_Isol):
 
     def Calc_optimal_angle(teta_z, latitude, transmissivity):
         if transmissivity <= 0.15:
@@ -392,8 +394,8 @@ def optimal_angle_and_tilt(observers_all, latitude, worst_sh, worst_Az, transmit
         return CATB, CATGB, CATteta_z
 
     # calculate values for flat roofs Slope < 5 degrees.
-    optimal_angle_flat = Calc_optimal_angle(0, latitude, transmittivity)
-    optimal_spacing_flat = Calc_optimal_spacing(worst_sh, worst_Az, optimal_angle_flat, module_lenght)
+    optimal_angle_flat = Calc_optimal_angle(0, latitude, transmissivity)
+    optimal_spacing_flat = Calc_optimal_spacing(worst_sh, worst_Az, optimal_angle_flat, module_length)
     arcpy.AddField_management(observers_all, "array_s", "DOUBLE")
     arcpy.AddField_management(observers_all, "area_netpv", "DOUBLE")
     arcpy.AddField_management(observers_all, "CATB", "SHORT")
