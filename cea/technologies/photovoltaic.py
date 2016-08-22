@@ -34,7 +34,6 @@ def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv,
 
     # weather data
     weather_data = epwreader.epw_reader(weather_path)
-
     # solar properties
     g, Sz, Az, ha, trr_mean, worst_sh, worst_Az = solar_equations.calc_sun_properties(latitude, longitude, weather_data,
                                                                                        gv)
@@ -51,13 +50,13 @@ def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv,
     # radiation_clean[radiation_clean[:] <= 50] = 0
     #
     # calculate optimal angle and tilt for panels
-    #optimal_angle_and_tilt(metadata, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
+    optimal_angle_and_tilt(metadata, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
     #                        gv.module_lenght_PV, gv.angle_north, Min_Isol, Max_Isol)
     #
-    # Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(radiation_clean, metadata_clean)
+    Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(radiation_clean, metadata_clean)
     #
-    # results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
-    #                                         prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
+    results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
+                                             prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
     #
     # Final.to_csv(locator.PV_result(), index=True, float_format='%.2f')
     return
