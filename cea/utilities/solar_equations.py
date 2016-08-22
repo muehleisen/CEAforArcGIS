@@ -46,8 +46,7 @@ def _ephem_setup(latitude, longitude, altitude, pressure, temperature):
     return obs, sun
 
 
-def pyephem(time, latitude, longitude, altitude=0, pressure=101325,
-            temperature=12):
+def pyephem(time, latitude, longitude, altitude=0, pressure=101325, temperature=12):
     """
     Calculate the solar position using the PyEphem package.
 
@@ -131,17 +130,17 @@ def calc_sun_properties(latitude, longitude, weather_data, gv):
     # solar elevation, azuimuth and values for the 9-3pm period of no shading on the solar solstice
     sun_coords = pyephem(date, latitude, longitude)
     sun_coords['declination'] = declination_degree(day_date, 365)
-    sun_coords['hour_angle'] = np.vectorize(get_hour_angle)(date, longitude)
-    worst_sh = sun_coords['elevation'].loc[gv.worst_hour, 'Sh']
-    worst_Az = sun_coords['azimuth'].loc[gv.worst_hour, 'Az']
+    sun_coords['hour_angle'] = np.vectorize(get_hour_angle)(longitude, min_date, hour_date, day_date)
+    worst_sh = sun_coords['elevation'].loc[date[gv.worst_hour]]
+    worst_Az = sun_coords['azimuth'].loc[date[gv.worst_hour]]
 
     # mean trnasmissivity
     weather_data['diff'] = weather_data.difhorrad_Whm2 / weather_data.glohorrad_Whm2
     T_G_hour = weather_data[np.isfinite(weather_data['diff'])]
     T_G_day = np.round(T_G_hour.groupby(['dayofyear']).mean(), 2)
     T_G_day['diff'] = T_G_day['diff'].replace(1, 0.90)
-    T_G_day['trr'] = (1 - T_G_day['diff'])
-    transmittivity = T_G_day['ttr'].mean()
+    #T_G_day['trr'] = (1 - T_G_day['diff'])
+    transmittivity = (1 - T_G_day['diff']).mean()
 
     return sun_coords['declination'], sun_coords['zenith'], sun_coords['azimuth'], sun_coords['hour_angle'], transmittivity, worst_sh, worst_Az
 
@@ -177,18 +176,42 @@ def declination_degree(day_date, TY):
     return 23.45 * np.vectorize(math.sin)((2 * math.pi / (TY)) * (day_date - 81))
 
 
-def get_hour_angle(date, longitude_deg):
-    solar_time = get_solar_time(longitude_deg, date)
+def get_hour_angle(longitude_deg, min_date, hour_date, day_date):
+    solar_time = get_solar_time(longitude_deg, min_date, hour_date, day_date)
     return 15 * (12 - solar_time)
 
 
 def get_solar_time(longitude_deg, min_date, hour_date, day_date):
+    """
     "returns solar time in hours for the specified longitude and time," \
     " accurate only to the nearest minute."
-    date = date.utctimetuple()
-    return \
-        (
-            (date.tm_hour * 60 + date.tm_min + 4 * longitude_deg + equation_of_time(date.tm_yday))
-        /
-            60
-        )
+
+    Parameters
+    ----------
+    longitude_deg
+    min_date
+    hour_date
+    day_date
+
+    Returns
+    -------
+
+    """
+    solar_time_min = hour_date * 60 + min_date + 4 * longitude_deg + get_equation_of_time(day_date)
+
+    return solar_time_min/60
+
+def get_equation_of_time(day_date):
+    """
+
+    Parameters
+    ----------
+    day_date
+
+    Returns
+    -------
+
+    """
+    B = (day_date-1)*360/365
+    E = 229.2*(0.000075 + 0.001868*math.cos(B) - 0.032077*math.sin(B) - 0.014615*math.cos(2*B) - 0.04089*math.sin(2*B))
+    return E
