@@ -42,21 +42,21 @@ def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv,
                                                                                        gv)
     #
     # select sensor point with sufficient solar radiation
-    max_yearly_radiation, min_yearly_production, sensors_rad_roof, sensors_rad_wall = calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv)
+    max_yearly_radiation, min_yearly_production, sensors_rad_roof, sensors_rad_wall, sensor_metadata = calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv)
 
     # get only datapoints with aminimum 50 W/m2 of radiation for energy production
     #radiation_clean = radiation_csv.loc[radiation['sensor_id'].isin(metadata_clean.sensor_id)]
 
     # calculate optimal angle and tilt for panels
-    optimal_angle_and_tilt(metadata_csv, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
+    optimal_angle_and_tilt(sensor_metadata, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
                             gv.module_lenght_PV, gv.angle_north, min_yearly_production, max_yearly_radiation)
-    #
-    #Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(radiation_clean, metadata_clean)
-    #
-    #results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
-    #                                         prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
-    #
-    # Final.to_csv(locator.PV_result(), index=True, float_format='%.2f')
+
+    Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(sensors_rad_roof, sensors_rad_wall, sensor_metadata)
+
+    results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
+                                             prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
+
+    Final.to_csv(locator.PV_result(), index=True, float_format='%.2f')
     return
 
 def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv):
@@ -72,7 +72,6 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
 
     # get only data points with production beyond min_production
     max_yearly_radiation = yearly_horizontal_rad.max()  # Maximum solar radiation at each building [Wh/m2/year]
-
     min_yearly_production = max_yearly_radiation * gv.min_production
 
     # join metadata names and fac_type
@@ -85,18 +84,17 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
     names_roof = sensor_names_faces_types[sensor_names_faces_types == 'roof'].index.values
     names_walls = sensor_names_faces_types[sensor_names_faces_types == 'wall'].index.values
 
-    sensor_names_roof = sensor_names_selection[names_roof][
-        sensor_names_selection[names_roof] > min_yearly_production].index.values
-    sensor_names_wall = sensor_names_selection[names_walls][
-        sensor_names_selection[names_walls] > min_yearly_production].index.values
+    sensor_names_roof = sensor_names_selection[names_roof][sensor_names_selection[names_roof] > min_yearly_production].index.values
+    sensor_names_wall = sensor_names_selection[names_walls][sensor_names_selection[names_walls] > min_yearly_production].index.values
 
     sensors_rad_roof = sensors_rad[sensor_names_roof]
     sensors_rad_wall = sensors_rad[sensor_names_wall]
 
-    sensors_rad_roof[sensors_rad_roof[:] <= 50] = 0
-    sensors_rad_wall[sensors_rad_wall[:] <= 50] = 0
+    #sensors_rad_roof[sensors_rad_roof.loc[:] <= 50] = 0
+    #sensors_rad_wall[sensors_rad_wall.loc[:] <= 50] = 0
 
-    return max_yearly_radiation, min_yearly_production, sensors_rad_roof, sensors_rad_wall
+    #sensors_metadata = sensors_metadata[sensors_metadata.bui_fac_sen == 'B2368593_74_0'
+    return max_yearly_radiation, min_yearly_production, sensors_rad_roof, sensors_rad_wall, sensors_metadata
 
 def calc_radiation_sensor_selection(weather_data, radiation_csv, metadata_csv, gv):
     # read radiation file
@@ -354,7 +352,7 @@ def optimal_angle_and_tilt(observers_all, latitude, worst_sh, worst_Az, transmis
         D = max(D1 * cos(radians(180 - Az)), D1 * cos(radians(Az - 180)))
         return D
 
-    def Calc_categoriesroof(teta_z, B, GB, Max_Isol):
+    def Calc_categoriesroof(observers_all, teta_z, B, GB, Max_Isol):
         if -122.5 < teta_z <= -67:
             CATteta_z = 1
         elif -67 < teta_z <= -22.5:
@@ -393,51 +391,26 @@ def optimal_angle_and_tilt(observers_all, latitude, worst_sh, worst_Az, transmis
 
         return CATB, CATGB, CATteta_z
 
-    # calculate values for flat roofs Slope < 5 degrees.
-    optimal_angle_flat = Calc_optimal_angle(0, latitude, transmissivity)
-    optimal_spacing_flat = Calc_optimal_spacing(worst_sh, worst_Az, optimal_angle_flat, module_length)
-    arcpy.AddField_management(observers_all, "array_s", "DOUBLE")
-    arcpy.AddField_management(observers_all, "area_netpv", "DOUBLE")
-    arcpy.AddField_management(observers_all, "CATB", "SHORT")
-    arcpy.AddField_management(observers_all, "CATGB", "SHORT")
-    arcpy.AddField_management(observers_all, "CATteta_z", "SHORT")
-    fields = ('aspect', 'slope', 'GB', "array_s", "area_netpv", "CATB", "CATGB", "CATteta_z")
-    # go inside the database and perform the changes
-    with arcpy.da.UpdateCursor(observers_all, fields) as cursor:
-        for row in cursor:
-            aspect = row[0]
-            slope = row[1]
-            if slope > 5:  # no t a flat roof.
-                B = slope
-                array_s = 0
-                if 180 <= aspect < 360:  # convert the aspect of arcgis to azimuth
-                    teta_z = aspect - 180
-                elif 0 < aspect < 180:
-                    teta_z = aspect - 180  # negative in the east band
-                elif aspect == 0 or aspect == 360:
-                    teta_z = 180
-                if -angle_north <= teta_z <= angle_north and row[2] > Min_Isol:
-                    row[0] = teta_z
-                    row[1] = B
-                    row[3] = array_s
-                    row[4] = (grid_side - array_s) / cos(radians(abs(B))) * grid_side
-                    row[5], row[6], row[7] = Calc_categoriesroof(teta_z, B, row[2], Max_Isol)
-                    cursor.updateRow(row)
-                else:
-                    cursor.deleteRow()
-            else:
-                teta_z = 0  # flat surface, all panels will be oriented towards south # optimal angle in degrees
-                B = optimal_angle_flat
-                array_s = optimal_spacing_flat
-                if row[2] > Min_Isol:
-                    row[0] = teta_z
-                    row[1] = B
-                    row[3] = array_s
-                    row[4] = (grid_side - array_s) / cos(radians(abs(B))) * grid_side
-                    row[5], row[6], row[7] = Calc_categoriesroof(teta_z, B, row[2], Max_Isol)
-                    cursor.updateRow(row)
-                else:
-                    cursor.deleteRow()
+        # calculate values for flat roofs Slope < 5 degrees.
+        optimal_angle_flat = Calc_optimal_angle(0, latitude, transmissivity)
+        optimal_spacing_flat = Calc_optimal_spacing(worst_sh, worst_Az, optimal_angle_flat, module_length)
+        fields = ('aspect', 'slope', 'GB', "array_s", "area_netpv", "CATB", "CATGB", "CATteta_z")
+        # go inside the database and perform the changes
+        teta_z = observers_all["teta_z"]
+        slope = observers_all["slope"]
+        if slope > 5:  # not a flat roof.
+            B = slope
+            array_s = 0
+            observers_all["area_netpv"] = (grid_side - array_s) / cos(radians(abs(B))) * grid_side
+            observers_all["CATB", "CATGB", "CATteta_z"] = Calc_categoriesroof(teta_z, B, row[2], Max_Isol)
+        else:
+            teta_z = 0  # flat surface, all panels will be oriented towards south # optimal angle in degrees
+            B = optimal_angle_flat
+            array_s = optimal_spacing_flat
+            observers_all["area_netpv"] = (grid_side - array_s) / cos(radians(abs(B))) * grid_side
+            observers_all["CATB", "CATGB", "CATteta_z"] = Calc_categoriesroof(teta_z, B, row[2], Max_Isol)
+    return observers_all
+
 
 
 """

@@ -132,16 +132,18 @@ def SC_generation(type_SCpanel, group_radiation, prop_observers, number_points, 
     return listresults, Final
 
 
-def calc_groups(Clean_hourly, observers_fin):
+def calc_groups(sensors_rad_roof, sensors_rad_wall, metadata_clean):
+
+    radiation_clean = sensors_rad_roof.join(sensors_rad_wall)
 
     # calculate number of optima groups as number of optimal combiantions.
-    groups_ob = Clean_hourly.groupby(['CATB', 'CATGB', 'CATteta_z'])
+    groups_ob = radiation_clean.groupby(['CATB', 'CATGB', 'CATteta_z'])
     hourlydata_groups = groups_ob.mean().reset_index()
     hourlydata_groups = pd.DataFrame(hourlydata_groups)
     Number_pointsgroup = groups_ob.size().reset_index()
     number_points = Number_pointsgroup[0]
 
-    groups_ob = observers_fin.groupby(['CATB', 'CATGB', 'CATteta_z'])
+    groups_ob = metadata_clean.groupby(['CATB', 'CATGB', 'CATteta_z'])
     prop_observers = groups_ob.mean().reset_index()
     prop_observers = pd.DataFrame(prop_observers)
     Number_groups = groups_ob.size().count()
