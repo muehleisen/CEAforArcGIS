@@ -58,6 +58,8 @@ class GlobalVariables(object):
         self.sl_services = 40  # service life of technical instalations
         # constant variables for air conditioning fan
         self.Pfan = 0.55 # specific fan consumption in W/m3/h
+        self.pvonroof = True  # flag for pv on roof
+        self.pvonwall = True  # flag for pv on wall
 
         # ==============================================================================================================
         # optimization
@@ -446,10 +448,10 @@ class GlobalVariables(object):
         # ==============================================================================================================
 
         self.Tin = 75  # average temeperature
-        self.module_lenght_SC = 2  # m # 1 for PV and 2 for solar collectors
-        self.min_production = 0.75  # points are selected with at least a minimum production of this % from the maximum in the area.
+        self.module_length_SC = 2  # m # 1 for PV and 2 for solar collectors
+        self.min_production = 0.001  # points are selected with at least a minimum production of this % from the maximum in the area.
         self.grid_side = 2  # in a rectangular grid of points, one side of the square. this cannot be changed if the solra potential was made with this.
-        self.worst_hour = 8744  # first hour of sun on the solar solstice
+        self.worst_hour = 8745  # 9am of sun on the solar solstice
         self.angle_north = 122.5
         self.type_SCpanel = 1  # Flatplate collector
 
@@ -457,7 +459,7 @@ class GlobalVariables(object):
         # PV panel
         # ==============================================================================================================
 
-        self.module_lenght_PV = 1 # m # 1 for PV and 2 for solar collectors
+        self.module_length_PV = 1 # m # 1 for PV and 2 for solar collectors
         self.min_production = 0.75  # points are selected with at least a minimum production of this % from the maximum in the area.
         self.type_PVpanel = 1  # monocrystalline
         self.misc_losses = 0.1 #cabling, resistances etc..
