@@ -77,7 +77,7 @@ def lca_embodied(yearcalc, locator, gv):
         csv file of yearly primary energy and grey emissions per building stored in path_results
     """
 
-    # localvariables
+    # local variables
     architecture_df = gpdf.from_file(locator.get_building_architecture()).drop('geometry', axis=1)
     Area_df = pd.read_csv(locator.get_total_demand())[['GFA_m2']]
     prop_occupancy_df = gpdf.from_file(locator.get_building_occupancy()).drop('geometry', axis=1)
@@ -93,7 +93,6 @@ def lca_embodied(yearcalc, locator, gv):
 
     # define main use:
     occupancy_df['mainuse'] = calc_mainuse(occupancy_df, list_uses)
-
     # dataframe with jonned data for categories
     cat_df = occupancy_df.merge(age_df,on='Name').merge(geometry_df,on='Name').merge(architecture_df,on='Name')
 
@@ -191,8 +190,8 @@ def lca_embodied(yearcalc, locator, gv):
             result[1] = built_df[['Name','CO2_ton', 'CO2_kgm2']]
         counter += 1
 
-    pd.DataFrame({'Name': result[0].Name, 'pen_GJ': result[0].GEN_GJ, 'pen_MJm2': result[0].GEN_MJm2,
-                  'ghg_ton': result[1].CO2_ton, 'ghg_kgm2': result[1].CO2_kgm2,'GFA_m2': result[0].total_area}).to_csv(locator.get_lca_embodied(),
+    pd.DataFrame({'Name': result[0].Name, 'E_nre_pen_GJ': result[0].GEN_GJ, 'E_nre_pen_MJm2': result[0].GEN_MJm2,
+                  'E_ghg_ton': result[1].CO2_ton, 'E_ghg_kgm2': result[1].CO2_kgm2,'GFA_m2': result[0].total_area}).to_csv(locator.get_lca_embodied(),
                                                                                          index=False, float_format='%.2f')
     print 'done!'
 
