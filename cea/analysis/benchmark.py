@@ -73,9 +73,7 @@ def benchmark(locator_list, output_file):
             (pd.read_csv(locator.get_lca_operation()),on = 'Name').merge\
             (pd.read_csv(locator.get_lca_mobility()),on = 'Name')
         df_buildings = df_buildings.rename(columns=new_cols)
-        print pd.read_csv(locator.get_lca_embodied())
-        print pd.read_csv(locator.get_lca_operation())
-        print pd.read_csv(locator.get_lca_mobility())
+        print df_buildings
 
         for i in range(4):
             col_list = [graphs[0] + fields[i], graphs[1] + fields[i], graphs[2] + fields[i]]
