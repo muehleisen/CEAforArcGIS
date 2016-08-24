@@ -39,7 +39,7 @@ def benchmark(locator_list, output_file):
     color_palette = ['g', 'r', 'y', 'c', 'b', 'm', 'k']
     legend = []
     graphs = ['embodied', 'operation', 'mobility', 'total']
-    old_fields = ['pen_GJ', 'ghg_ton', 'pen_MJm2', 'ghg_kgm2']
+    old_fields = ['nre_pen_GJ', 'ghg_ton', 'nre_pen_MJm2', 'ghg_kgm2']
     old_prefix = ['E_', 'O_', 'M_']
     fields = ['_GJ', '_ton', '_MJm2', '_kgm2']
     new_cols = {}
@@ -73,6 +73,9 @@ def benchmark(locator_list, output_file):
             (pd.read_csv(locator.get_lca_operation()),on = 'Name').merge\
             (pd.read_csv(locator.get_lca_mobility()),on = 'Name')
         df_buildings = df_buildings.rename(columns=new_cols)
+        print pd.read_csv(locator.get_lca_embodied())
+        print pd.read_csv(locator.get_lca_operation())
+        print pd.read_csv(locator.get_lca_mobility())
 
         for i in range(4):
             col_list = [graphs[0] + fields[i], graphs[1] + fields[i], graphs[2] + fields[i]]
