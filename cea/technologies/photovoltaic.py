@@ -46,11 +46,11 @@ def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv,
     # calculate optimal angle and tilt for panels
     sensors_metadata_cat = optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
                             gv.module_length_PV, gv.angle_north, min_yearly_production, max_yearly_radiation)
-    print sensors_metadata_cat
-    #Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(sensors_rad_clean, sensors_metadata_cat)
 
-    #results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
-    #                                         prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
+    Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(sensors_rad_clean, sensors_metadata_cat)
+
+    results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
+                                             prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
 
     #Final.to_csv(locator.PV_result(), index=True, float_format='%.2f')
     return
@@ -365,6 +365,7 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
         return D
 
     def Calc_categoriesroof(teta_z, B, GB, Max_Isol):
+        B = degrees(B)
         if -122.5 < teta_z <= -67:
             CATteta_z = 1
         elif -67 < teta_z <= -22.5:
@@ -375,6 +376,9 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
             CATteta_z = 4
         elif 67 <= teta_z <= 122.5:
             CATteta_z = 2
+        else:
+            CATteta_z = None
+            print('teta_z not in expected range')
 
         if 0 < B <= 5:
             CATB = 1  # flat roof
@@ -388,10 +392,13 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
             CATB = 5  # tilted 25 degrees
         elif B > 60:
             CATB = 6  # tilted 25 degrees
+        else:
+            CATB = None
+            print('B not in expected range')
 
         GB_percent = GB / Max_Isol
         if 0 < GB_percent <= 0.25:
-            CATGB = 1  # flat roof
+            CATGB = 1
         elif 0.25 < GB_percent <= 0.50:
             CATGB = 2
         elif 0.50 < GB_percent <= 0.75:
@@ -400,35 +407,48 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
             CATGB = 4
         elif 0.90 < GB_percent <= 1:
             CATGB = 5
+        else:
+            CATGB = None
+            print('GB not in expected range')
 
-        return CATB, CATGB, CATteta_z
+        return CATteta_z, CATB, CATGB
 
         # calculate values for flat roofs Slope < 5 degrees.
     optimal_angle_flat = Calc_optimal_angle(0, latitude, transmissivity)
     optimal_spacing_flat = Calc_optimal_spacing(worst_sh, worst_Az, optimal_angle_flat, module_length)
     sensors_metadata_clean['B'] = np.where(sensors_metadata_clean['slope'] >= 5, sensors_metadata_clean['slope'], optimal_angle_flat)
     sensors_metadata_clean['array_s'] = np.where(sensors_metadata_clean['slope'] >= 5, 0, optimal_spacing_flat)
-    # FIXME: cos return float, error msg: cannot convert the series to <type 'float'>
+    sensors_metadata_clean['teta_z'] = np.where(sensors_metadata_clean['slope'] >= 5, sensors_metadata_clean['teta_z'], 0)
     #sensors_metadata_clean['area_netpv'] = (grid_side - sensors_metadata_clean.array_s) / [cos(x) for x in sensors_metadata_clean.B] * grid_side
     sensors_metadata_clean['area_netpv'] = module_length**2*(sensors_metadata_clean.sen_area / module_length*(sensors_metadata_clean.array_s/2 + module_length*[cos(x) for x in sensors_metadata_clean.B]))
-    #sensors_metadata_clean['CATB', 'CATGB', 'CATteta_z'] = Calc_categoriesroof(sensors_metadata_clean['teta_z'], sensors_metadata_clean['B'],
-    #                                                                           sensors_metadata_clean['total_rad'],
-    #                                                                           Max_Isol)
+
+    # categorize the sensors by
+    result = np.vectorize(Calc_categoriesroof)(sensors_metadata_clean.teta_z, sensors_metadata_clean.B,
+                                               sensors_metadata_clean.total_rad, Max_Isol)
+    sensors_metadata_clean['CATteta_z'] = result[0]
+    sensors_metadata_clean['CATB'] = result[1]
+    sensors_metadata_clean['CATGB'] = result[2]
     return sensors_metadata_clean
 
 def calc_groups(sensors_rad_clean, sensors_metadata_cat):
+    # add categories to sensors_rad
+    #sensors_rad_clean = sensors_rad_clean.append(sensors_metadata_cat['CATB'])
+    #sensors_rad_clean = sensors_rad_clean.append(sensors_metadata_cat['CATGB'])
+    #sensors_rad_clean = sensors_rad_clean.append(sensors_metadata_cat['CATteta_z'])
 
     # calculate number of optima groups as number of optimal combiantions.
-    groups_ob = sensors_rad_clean.groupby(['CATB', 'CATGB', 'CATteta_z'])
-    hourlydata_groups = groupsob.mean().reset_index()
-    hourlydata_groups = pd.DataFrame(hourlydata_groups)
-    Number_pointsgroup = groups_ob.size().reset_index()
-    number_points = Number_pointsgroup[0]    # number of sensors in each group
-
     groups_ob = sensors_metadata_cat.groupby(['CATB', 'CATGB', 'CATteta_z'])
     prop_observers = groups_ob.mean().reset_index()
     prop_observers = pd.DataFrame(prop_observers)
-    Number_groups = groups_ob.size().count()
+    number_groups = groups_ob.size().count()
+    list = groups_ob.groups.values()
+    for x in range(0,number_groups):
+        sensors_group = sensors_rad_clean[list[x]]
+    groups_ob = sensors_rad_clean.groupby(['CATB', 'CATGB', 'CATteta_z'])
+    hourlydata_groups = groups_ob.mean().reset_index()
+    hourlydata_groups = pd.DataFrame(hourlydata_groups)
+    Number_pointsgroup = groups_ob.size().reset_index()
+    number_points = Number_pointsgroup[0]    # number of sensors in each group
 
     hourlydata_groups = hourlydata_groups.drop({'ID', 'GB', 'grid_code', 'pointid', 'array_s', 'area_netpv', 'aspect',
                                                 'slope', 'CATB', 'CATGB', 'CATteta_z'}, axis=1).transpose().reindex(
