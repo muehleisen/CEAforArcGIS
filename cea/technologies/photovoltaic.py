@@ -356,7 +356,7 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
         l = radians(latitude)
         a = radians(teta_z)  # this is surface azimuth
         b = atan((cos(a) * tan(l)) * (1 / (1 + ((Tad * gKt - Tar * Pg) / (2 * (1 - gKt))))))
-        return degrees(b)
+        return b  #radians
 
     def Calc_optimal_spacing(Sh, Az, tilt_angle, module_length):
         h = module_length * sin(radians(tilt_angle))
@@ -409,8 +409,8 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
     sensors_metadata_clean['B'] = np.where(sensors_metadata_clean['slope'] >= 5, sensors_metadata_clean['slope'], optimal_angle_flat)
     sensors_metadata_clean['array_s'] = np.where(sensors_metadata_clean['slope'] >= 5, 0, optimal_spacing_flat)
     # FIXME: cos return float, error msg: cannot convert the series to <type 'float'>
-    #sensors_metadata_clean['area_netpv'] = module_length**2*(sensors_metadata_clean.sen_area / module_length*(sensors_metadata_clean.array_s/2 + module_length*sensors_metadata_clean.cosB))
-    #sensors_metadata_clean['area_netpv'] = (grid_side - sensors_metadata_clean.array_s) / cos(radians(abs(sensors_metadata_clean.B))) * grid_side
+    #sensors_metadata_clean['area_netpv'] = (grid_side - sensors_metadata_clean.array_s) / [cos(x) for x in sensors_metadata_clean.B] * grid_side
+    sensors_metadata_clean['area_netpv'] = module_length**2*(sensors_metadata_clean.sen_area / module_length*(sensors_metadata_clean.array_s/2 + module_length*[cos(x) for x in sensors_metadata_clean.B]))
     #sensors_metadata_clean['CATB', 'CATGB', 'CATteta_z'] = Calc_categoriesroof(sensors_metadata_clean['teta_z'], sensors_metadata_clean['B'],
     #                                                                           sensors_metadata_clean['total_rad'],
     #                                                                           Max_Isol)
