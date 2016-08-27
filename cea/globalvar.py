@@ -449,7 +449,7 @@ class GlobalVariables(object):
 
         self.Tin = 75  # average temeperature
         self.module_length_SC = 2  # m # 1 for PV and 2 for solar collectors
-        self.min_production = 0.001  # points are selected with at least a minimum production of this % from the maximum in the area.
+        self.min_production = 0.75  # points are selected with at least a minimum production of this % from the maximum in the area.
         self.grid_side = 2  # in a rectangular grid of points, one side of the square. this cannot be changed if the solra potential was made with this.
         self.worst_hour = 8745  # 9am of sun on the solar solstice
         self.angle_north = 122.5

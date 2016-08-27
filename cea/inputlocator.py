@@ -172,6 +172,17 @@ class InputLocator(object):
         """scenario/outputs/data/solar-radiation/radiation.csv"""
         return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation')
 
+    ## Technology
+    def get_solar_potential_folder(self):
+        """scenario/outputs/data/potentials/solar"""
+        return os.path.join(self.scenario_path, 'outputs', 'data', 'potentials','solar')
+
+    def PV_results(self, building_name):
+        """scenario/outputs/data/potentials/solar/{building_name}_PV.csv"""
+        solar_potential_folder = self.get_solar_potential_folder()
+        return os.path.join(solar_potential_folder, '%s_PV.csv' % building_name)
+
+
     ##DEMAND
     def get_demand_results_folder(self):
         """scenario/2-results/2-demand/1-timeseries"""
