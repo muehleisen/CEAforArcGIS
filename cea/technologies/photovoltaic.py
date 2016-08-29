@@ -176,7 +176,7 @@ def Calc_pv_generation(type_panel, hourly_radiation, number_groups, number_point
         result[group] = np.vectorize(Calc_PV_power)(results[0], results[1], eff_nom, area_per_group, Bref,misc_losses)
         groups_area[group] = area_per_group
 
-        Sum_PV = Sum_PV + result[group]
+        Sum_PV = Sum_PV + result[group] # in kWh
     total_area = sum(groups_area)
     Final = pd.DataFrame({'PV_kWh':Sum_PV,'Area':total_area})
     return result, Final
@@ -467,7 +467,7 @@ def calc_groups(sensors_rad_clean, sensors_metadata_cat):
 
     for x in range(0, number_groups):
         sensors_rad_group = sensors_rad_clean[sensors_list[x]]
-        rad_mean = sensors_rad_group.mean(axis=1).as_matrix().T
+        rad_mean = sensors_rad_group.mean(axis=1).as_matrix().T   #FIXME: the sensor areas are different from sensor to sensor, have to use specific value
         rad_group_mean[x] = rad_mean
         number_points[x] = len(sensors_list[x])
     hourlydata_groups = pd.DataFrame(rad_group_mean).T
