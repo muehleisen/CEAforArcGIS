@@ -85,21 +85,21 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
     # delete sensors facing downwards (direction z < -0.1), FIXME: this should be cleaned up in the radiation script
     sensors_metadata = sensors_metadata[sensors_metadata.tilt <= 91]
     # delete sensors facing north
-    sensors_metadata = sensors_metadata[sensors_metadata.teta_z <= 122.5]
-    sensors_metadata = sensors_metadata[sensors_metadata.teta_z >= -122.5]
+    sensors_metadata = sensors_metadata[sensors_metadata.teta_z <= gv.angle_north]
+    sensors_metadata = sensors_metadata[sensors_metadata.teta_z >= -gv.angle_north]
 
     # join total radiation to sensor_metadata
     sensors_metadata = sensors_metadata.set_index('bui_fac_sen')
     sensors_metadata['total_rad']= sensors_rad.iloc[index_totals]
 
     # keep sensors above min production in sensors_rad
-    def fx(x,y):
+    def devide(x,y):
         return x/y
-    sensors_metadata['specific_rad'] = np.vectorize(fx)(sensors_metadata['total_rad'], sensors_metadata['sen_area'])
+    sensors_metadata['specific_rad'] = np.vectorize(devide)(sensors_metadata['total_rad'], sensors_metadata['sen_area'])
     sensors_metadata_clean = sensors_metadata[sensors_metadata.specific_rad >= min_yearly_production]
     sensors_rad_clean = sensors_rad[sensors_metadata_clean.index.tolist()]
 
-    # eliminate points when hourly production < 50 W/m2
+    # eliminate points when hourly production < 50 W/m2 FIXME:each sensor point has different area
     sensors_rad_clean[sensors_rad_clean[:] <= 50] = 0
 
     return max_yearly_radiation, min_yearly_production, sensors_rad_clean, sensors_metadata_clean
@@ -149,15 +149,14 @@ def Calc_pv_generation(type_panel, hourly_radiation, number_groups, number_point
     groups_area = list(range(number_groups))
     Sum_PV = np.zeros(8760)
 
-    n = 1.526 #refractive index of galss
-    Pg = 0.2 # ground reflectance
-    K = 0.4 # extinction coefficien
-    eff_nom,NOCT,Bref,a0,a1,a2,a3,a4,L  = calc_properties_PV(type_panel)
+    n = 1.526 # refractive index of galss
+    Pg = 0.2  # ground reflectance
+    K = 0.4   # extinction coefficien
+    eff_nom,NOCT,Bref,a0,a1,a2,a3,a4,L = calc_properties_PV(type_panel)
 
     for group in range(number_groups):
         teta_z = prop_observers.loc[group,'teta_z'] #azimuth of paneles of group
-        #FIXME: total area of the group is the sum of area_netpv
-        area_per_group = abs(prop_observers.loc[group,'area_netpv'])*number_points[group]
+        area_per_group = prop_observers.loc[group,'total_area_pv']
         tilt_angle = prop_observers.loc[group,'tilt'] #tilt angle of panels
         radiation = pd.DataFrame({'I_sol':hourly_radiation[group]}) #choose vector with all values of Isol
         radiation['I_diffuse'] = weather_data.ratio_diffhout*radiation.I_sol #calculate diffuse radiation
@@ -174,15 +173,12 @@ def Calc_pv_generation(type_panel, hourly_radiation, number_groups, number_point
         results = np.vectorize(Calc_Sm_PV)(weather_data.drybulb_C,radiation.I_sol, radiation.I_direct, radiation.I_diffuse, tilt,
                                               Sz_vector, teta_vector, teta_ed, teta_eg,
                                               n, Pg, K,NOCT,a0,a1,a2,a3,a4,L)
-
-
         result[group] = np.vectorize(Calc_PV_power)(results[0], results[1], eff_nom, area_per_group, Bref,misc_losses)
         groups_area[group] = area_per_group
 
         Sum_PV = Sum_PV + result[group]
-    total_area = sum(groups_area)[0]
+    total_area = sum(groups_area)
     Final = pd.DataFrame({'PV_kWh':Sum_PV,'Area':total_area})
-    print Final
     return result, Final
 
 
@@ -425,21 +421,25 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
 
         return CATteta_z, CATB, CATGB
 
-        # calculate values for flat roofs Slope < 5 degrees.
+    # calculate values for flat roofs Slope < 5 degrees.
     optimal_angle_flat = Calc_optimal_angle(0, latitude, transmissivity)
     optimal_spacing_flat = Calc_optimal_spacing(worst_sh, worst_Az, optimal_angle_flat, module_length)
     sensors_metadata_clean['B'] = np.where(sensors_metadata_clean['tilt'] >= 5, sensors_metadata_clean['tilt'], optimal_angle_flat)
     # set panel declination as 90 degree for walls
     sensors_metadata_clean['B'] = np.where(sensors_metadata_clean['tilt'] >= 90, 90, sensors_metadata_clean['B'])
+    # assign spacing and surface azimuth of the panels for each sensor point
     sensors_metadata_clean['array_s'] = np.where(sensors_metadata_clean['tilt'] >= 5, 0, optimal_spacing_flat)
     sensors_metadata_clean['teta_z'] = np.where(sensors_metadata_clean['tilt'] >= 5, sensors_metadata_clean['teta_z'], 0)
-    #sensors_metadata_clean['area_netpv'] = (grid_side - sensors_metadata_clean.array_s) / [cos(x) for x in sensors_metadata_clean.B] * grid_side
+    # sensors_metadata_clean['area_netpv'] = (grid_side - sensors_metadata_clean.array_s) / [cos(x) for x in sensors_metadata_clean.B] * grid_side
     # FIXME: check the calculation
-    sensors_metadata_clean['area_netpv'] = module_length**2*(sensors_metadata_clean.sen_area / (module_length*(sensors_metadata_clean.array_s/2 + module_length*[cos(x) for x in sensors_metadata_clean.B])))
+    # calculate the surface area to install one pv panel on flat roofs with defined tilt angle and array spacing
+    surface_area_flat = module_length*(sensors_metadata_clean.array_s/2 + module_length*[cos(x) for x in sensors_metadata_clean.B])
+    # calculate the pv module area for each sensor
+    sensors_metadata_clean['area_netpv'] = np.where(sensors_metadata_clean['tilt'] >= 5, sensors_metadata_clean.sen_area, module_length**2 * (sensors_metadata_clean.sen_area / surface_area_flat))
+
     # categorize the sensors by teta_z, B, GB
     result = np.vectorize(Calc_categoriesroof)(sensors_metadata_clean.teta_z, sensors_metadata_clean.B,
                                                sensors_metadata_clean.specific_rad, Max_Isol)
-
     sensors_metadata_clean['CATteta_z'] = result[0]
     sensors_metadata_clean['CATB'] = result[1]
     sensors_metadata_clean['CATGB'] = result[2]
@@ -456,6 +456,8 @@ def calc_groups(sensors_rad_clean, sensors_metadata_cat):
     groups_ob = sensors_metadata_cat.groupby(['CATB', 'CATGB', 'CATteta_z'])
     prop_observers = groups_ob.mean().reset_index()
     prop_observers = pd.DataFrame(prop_observers)
+    total_area_pv = groups_ob['area_netpv'].sum().reset_index()['area_netpv']
+    prop_observers['total_area_pv'] = total_area_pv
     number_groups = groups_ob.size().count()
     sensors_list = groups_ob.groups.values()
 
@@ -468,7 +470,6 @@ def calc_groups(sensors_rad_clean, sensors_metadata_cat):
         rad_mean = sensors_rad_group.mean(axis=1).as_matrix().T
         rad_group_mean[x] = rad_mean
         number_points[x] = len(sensors_list[x])
-
     hourlydata_groups = pd.DataFrame(rad_group_mean).T
     hourlydata_groups = hourlydata_groups.drop(hourlydata_groups.index[8760])   # drop the row with total radiation
 
