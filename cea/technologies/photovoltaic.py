@@ -71,37 +71,39 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
     # set value for min yearly production
     max_yearly_radiation = yearly_horizontal_rad
     min_yearly_production = max_yearly_radiation * gv.min_production
+    # TODO: better way to decide the min radiation could be the Full load Hour, but it depends on the choice of PV module.
 
     # keep sensors if allow pv installation
+    #sensors_metadata['fac_type'] = np.where(sensors_metadata['tilt'] >= 89, 'wall', 'roof')
     #if gv.pvonroof == True:
     #    sensors_metadata = sensors_metadata
     #else:
     #    sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'roof']
-    if gv.pvonwall == True:
-        sensors_metadata = sensors_metadata
-    else:
-        sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'wall']
+    #if gv.pvonwall == True:
+    #    sensors_metadata = sensors_metadata
+    #else:
+    #    sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'wall']
 
-    # delete sensors facing downwards (direction z < -0.1), FIXME: this should be cleaned up in the radiation script
+    # delete sensors facing downwards, FIXME: this should be cleaned up in the radiation script, but not possible at this point (08/2016)
     sensors_metadata = sensors_metadata[sensors_metadata.tilt <= 91]
     # delete sensors facing north
-    sensors_metadata = sensors_metadata[sensors_metadata.teta_z <= gv.angle_north]
-    sensors_metadata = sensors_metadata[sensors_metadata.teta_z >= -gv.angle_north]
+    sensors_metadata = sensors_metadata[sensors_metadata.orientation <= gv.angle_north]    # orientation = teta_z
+    sensors_metadata = sensors_metadata[sensors_metadata.orientation >= -gv.angle_north]
 
     # join total radiation to sensor_metadata
     sensors_metadata = sensors_metadata.set_index('bui_fac_sen')
     sensors_metadata['total_rad']= sensors_rad.iloc[index_totals]
 
     # keep sensors above min production in sensors_rad
-    def devide(x,y):
-        return x/y
-    sensors_metadata['specific_rad'] = np.vectorize(devide)(sensors_metadata['total_rad'], sensors_metadata['sen_area'])
-    sensors_metadata_clean = sensors_metadata[sensors_metadata.specific_rad >= min_yearly_production]
+    #def devide(x,y):
+    #    return x/y
+    #sensors_metadata['specific_rad'] = np.vectorize(devide)(sensors_metadata['total_rad'], sensors_metadata['sen_area'])
+    sensors_metadata_clean = sensors_metadata[sensors_metadata.total_rad >= min_yearly_production]
     sensors_rad_clean = sensors_rad[sensors_metadata_clean.index.tolist()]
 
-    # eliminate points when hourly production < 50 W/m2 FIXME:each sensor point has different area
+    # eliminate points when hourly production < 50 W/m2
     sensors_rad_clean[sensors_rad_clean[:] <= 50] = 0
-
+    print sensors_metadata_clean.index.tolist(), sensors_rad_clean  #FIXME: DELETE
     return max_yearly_radiation, min_yearly_production, sensors_rad_clean, sensors_metadata_clean
 
 def calc_radiation_sensor_selection(weather_data, radiation_csv, metadata_csv, gv):
@@ -155,7 +157,7 @@ def Calc_pv_generation(type_panel, hourly_radiation, number_groups, number_point
     eff_nom,NOCT,Bref,a0,a1,a2,a3,a4,L = calc_properties_PV(type_panel)
 
     for group in range(number_groups):
-        teta_z = prop_observers.loc[group,'teta_z'] #azimuth of paneles of group
+        teta_z = prop_observers.loc[group,'orientation'] #azimuth of paneles of group
         area_per_group = prop_observers.loc[group,'total_area_pv']
         tilt_angle = prop_observers.loc[group,'tilt'] #tilt angle of panels
         radiation = pd.DataFrame({'I_sol':hourly_radiation[group]}) #choose vector with all values of Isol
@@ -303,7 +305,7 @@ def Calc_Sm_PV(te, I_sol, I_direct, I_diffuse, tilt, Sz, teta, tetaed, tetaeg,
     if S <= 0:  # when points are 0 and too much losses
         S = 0
     # temperature of cell
-    Tcell = te + S * (NOCT - 20) / (800)
+    Tcell = te + S * (NOCT - 20) / (800)   # assuming linear temperature rise vs radiation according to NOCT condition
 
     return S, Tcell
 
@@ -363,7 +365,7 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
         l = radians(latitude)
         a = radians(teta_z)  # this is surface azimuth
         b = atan((cos(a) * tan(l)) * (1 / (1 + ((Tad * gKt - Tar * Pg) / (2 * (1 - gKt))))))
-        return b  #radians
+        return degrees(b)
 
     def Calc_optimal_spacing(Sh, Az, tilt_angle, module_length):
         h = module_length * sin(radians(tilt_angle))
@@ -373,6 +375,7 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
 
     def Calc_categoriesroof(teta_z, B, GB, Max_Isol):
         B = degrees(B)
+        # FIXME: different ways to categorize teta_z at location other than Zurich
         if -122.5 < teta_z <= -67:
             CATteta_z = 1
         elif -67 < teta_z <= -22.5:
@@ -413,7 +416,6 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
         elif 0.75 < GB_percent <= 0.90:
             CATGB = 4
         elif 0.90 < GB_percent :
-            # FIXME: some radiation is higher than yearly radiation in weather file, check either weather file or the sensors
             CATGB = 5
         else:
             CATGB = None
@@ -429,7 +431,7 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
     sensors_metadata_clean['B'] = np.where(sensors_metadata_clean['tilt'] >= 90, 90, sensors_metadata_clean['B'])
     # assign spacing and surface azimuth of the panels for each sensor point
     sensors_metadata_clean['array_s'] = np.where(sensors_metadata_clean['tilt'] >= 5, 0, optimal_spacing_flat)
-    sensors_metadata_clean['teta_z'] = np.where(sensors_metadata_clean['tilt'] >= 5, sensors_metadata_clean['teta_z'], 0)
+    sensors_metadata_clean['orientation'] = np.where(sensors_metadata_clean['tilt'] >= 5, sensors_metadata_clean['orientation'], 0)   #FIXME: orientation = teta_z
     # sensors_metadata_clean['area_netpv'] = (grid_side - sensors_metadata_clean.array_s) / [cos(x) for x in sensors_metadata_clean.B] * grid_side
     # FIXME: check the calculation
     # calculate the surface area to install one pv panel on flat roofs with defined tilt angle and array spacing
@@ -438,8 +440,8 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
     sensors_metadata_clean['area_netpv'] = np.where(sensors_metadata_clean['tilt'] >= 5, sensors_metadata_clean.sen_area, module_length**2 * (sensors_metadata_clean.sen_area / surface_area_flat))
 
     # categorize the sensors by teta_z, B, GB
-    result = np.vectorize(Calc_categoriesroof)(sensors_metadata_clean.teta_z, sensors_metadata_clean.B,
-                                               sensors_metadata_clean.specific_rad, Max_Isol)
+    result = np.vectorize(Calc_categoriesroof)(sensors_metadata_clean.orientation, sensors_metadata_clean.B,
+                                               sensors_metadata_clean.total_rad, Max_Isol) #FIXME: orientation = teta_z
     sensors_metadata_clean['CATteta_z'] = result[0]
     sensors_metadata_clean['CATB'] = result[1]
     sensors_metadata_clean['CATGB'] = result[2]
@@ -467,7 +469,7 @@ def calc_groups(sensors_rad_clean, sensors_metadata_cat):
 
     for x in range(0, number_groups):
         sensors_rad_group = sensors_rad_clean[sensors_list[x]]
-        rad_mean = sensors_rad_group.mean(axis=1).as_matrix().T   #FIXME: the sensor areas are different from sensor to sensor, have to use specific value
+        rad_mean = sensors_rad_group.mean(axis=1).as_matrix().T
         rad_group_mean[x] = rad_mean
         number_points[x] = len(sensors_list[x])
     hourlydata_groups = pd.DataFrame(rad_group_mean).T

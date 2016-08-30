@@ -59,7 +59,7 @@ class InputLocator(object):
     def get_default_weather(self):
         """/cea/databases/Weather/Zurich.epw
         path to database of archetypes file Archetypes_properties.xlsx"""
-        return os.path.join(self.db_path, 'Weather', 'Zug-2010.epw')
+        return os.path.join(self.db_path, 'Weather', 'Zurich.epw')
 
     def get_weather(self, name):
         """/cea/databases/Weather/{name}.epw"""
@@ -161,7 +161,7 @@ class InputLocator(object):
     def get_radiation_metadata(self, building_name):
         """scenario/2-results/2-demand/1-timeseries/{building_name}.csv"""
         radiation_results_folder = self.get_radiation_folder()
-        return os.path.join(radiation_results_folder, '%s_metadata.csv' % building_name)
+        return os.path.join(radiation_results_folder, '%s_id_df.csv' % building_name)
 
     def get_radiation(self, building_name):
         """scenario/2-results/2-demand/1-timeseries/{building_name}.csv"""
@@ -171,6 +171,8 @@ class InputLocator(object):
     def get_radiation_folder(self):
         """scenario/outputs/data/solar-radiation/radiation.csv"""
         return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation')
+
+
 
     ## Technology
     def get_solar_potential_folder(self):
