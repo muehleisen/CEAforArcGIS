@@ -19,8 +19,9 @@ class InputLocator(object):
     It also provides locations of other files, such as those in the databases folder (e.g. archetypes).
     """
     # SCENARIO
-    def __init__(self, scenario_path):
+    def __init__(self, scenario_path, run_index):
         self.scenario_path = scenario_path
+        self.run_index = run_index
         self.db_path = os.path.join(os.path.dirname(__file__), 'databases', 'CH')
 
         if scenario_path:
@@ -76,12 +77,12 @@ class InputLocator(object):
     def get_archetypes_properties(self):
         """/cea/databases/Archetypes/Switzerland/Archetypes_properties.xlsx
         path to database of archetypes file Archetypes_properties.xlsx"""
-        return os.path.join(self.db_path, 'Archetypes', 'Archetypes_properties.xlsx')
+        return os.path.join(self.db_path, 'Archetypes'+str(self.run_index), 'Archetypes_properties.xlsx')
 
     def get_archetypes_schedules(self):
         """/cea/databases/Archetypes/Switzerland/Archetypes_schedules.xlsx
         path to database of archetypes file Archetypes_HVAC_properties.xlsx"""
-        return os.path.join(self.db_path, 'Archetypes', 'Archetypes_schedules.xlsx')
+        return os.path.join(self.db_path, 'Archetypes'+str(self.run_index), 'Archetypes_schedules.xlsx')
 
     def get_life_cycle_inventory_supply_systems(self):
         """scenario/1-inputs/4-technical/supply_systems.csv"""
@@ -157,9 +158,17 @@ class InputLocator(object):
         """scenario/outputs/data/solar-radiation/radiation.csv"""
         return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation', 'radiation.csv')
 
-    def get_surface_properties(self):
-        """scenario/outputs/data/solar-radiation/properties_surfaces.csv"""
-        return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation', 'properties_surfaces.csv')
+    def get_building_points(self):
+        """scenario/outputs/data/solar-radiation/building_points.csv"""
+        return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation', 'building_points.csv')
+
+    def get_bui_id_df(self):
+        """scenario/outputs/data/solar-radiation/bui_id_df.csv"""
+        return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation', 'bui_id_df.csv')
+
+    def get_sen_not_shaded(self):
+        """scenario/outputs/data/solar-radiation/sen_not_shaded.csv"""
+        return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation', 'sen_not_shaded.csv')
 
     ##DEMAND
     def get_demand_results_folder(self):

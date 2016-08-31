@@ -183,7 +183,7 @@ def calc_thermal_loads(building_name, bpr, weather_data, usage_schedules, date, 
 
         # natural ventilation building propertiess
         # new
-        dict_props_nat_vent = ventilation_model.get_properties_natural_ventilation(
+        dict_props_nat_vent = ventilation_model.get_properties_natural_ventilation(building_name, results_folder,
             bpr.geometry,
             bpr.architecture, gv)
 
@@ -851,7 +851,7 @@ class BuildingProperties(object):
         self.gv = gv
         gv.log("reading input files")
         solar = pd.read_csv(locator.get_radiation()).set_index('Name')
-        surface_properties = pd.read_csv(locator.get_surface_properties())
+
         prop_geometry = GeoDataFrame.from_file(locator.get_building_geometry())
         prop_geometry['footprint'] = prop_geometry.area
         prop_geometry['perimeter'] = prop_geometry.length
@@ -874,11 +874,11 @@ class BuildingProperties(object):
 
         gv.log("calculating thermal properties")
         prop_rc_model = self.calc_prop_rc_model(prop_occupancy, prop_architecture, prop_thermal, prop_geometry,
-                                                prop_HVAC_result, surface_properties, gv)
+                                                prop_HVAC_result, locator, gv)
         gv.log("done")
 
         gv.log("creating windows")
-        df_windows = geometry_reader.create_windows(surface_properties, prop_architecture)
+        df_windows = geometry_reader.create_windows(locator)
         gv.log("done")
 
         # save resulting data
@@ -944,7 +944,7 @@ class BuildingProperties(object):
         """get windows and their properties of a building by name"""
         return self._prop_windows.loc[self._prop_windows['name_building'] == name_building].to_dict('list')
 
-    def calc_prop_rc_model(self, occupancy, architecture, thermal_properties, geometry, hvac_temperatures, surface_properties,
+    def calc_prop_rc_model(self, occupancy, architecture, thermal_properties, geometry, hvac_temperatures, locator,
                            gv):
         """
         Return the RC model properties for all buildings. The RC model used is described in ISO 13790:2008, Annex C (Full
@@ -1017,12 +1017,14 @@ class BuildingProperties(object):
         FIXME: rename Awall_all to something more sane...
         """
 
+        from cea.geometry import geometry_reader
+
         # Areas above ground
         # get the area of each wall in the buildings
-        surface_properties['Awall'] = (surface_properties['Shape_Leng'] * surface_properties['Freeheight'] *
-                                       surface_properties['FactorShade'])
-        df = pd.DataFrame({'Name': surface_properties['Name'],
-                           'Awall_all': surface_properties['Awall']}).groupby(by='Name').sum()
+        exposed_area = geometry_reader.get_facade_area(locator)
+
+        df = pd.DataFrame({'Name': exposed_area['Name'],
+                           'Awall_all': exposed_area['Awall_all']}).groupby(by='Name').sum()
 
         df = df.merge(architecture, left_index=True, right_index=True)
         df = df.merge(occupancy, left_index=True, right_index=True)

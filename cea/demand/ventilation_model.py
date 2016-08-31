@@ -22,8 +22,9 @@ from __future__ import division
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+import os
 
-from cea.geometry.geometry_reader import get_building_geometry_ventilation
+from cea.geometry.geometry_reader import get_ven_props, get_volume
 from cea.utilities.physics import calc_rho_air
 
 __author__ = "Gabriel Happle"
@@ -89,7 +90,7 @@ def calc_air_flows(temp_zone, u_wind, temp_ext, dict_props_nat_vent):
     return qm_sum_in, qm_sum_out
 
 
-def get_properties_natural_ventilation(gdf_geometry_building, gdf_architecture_building, gv):
+def get_properties_natural_ventilation(builing_name, results_folder, gdf_geometry_building, gdf_architecture_building, gv):
     """
 
     Parameters
@@ -104,12 +105,14 @@ def get_properties_natural_ventilation(gdf_geometry_building, gdf_architecture_b
     """
 
     n50 = gdf_architecture_building['n50']
-    vol_building = gdf_geometry_building['footprint'] * gdf_geometry_building['height_ag']
+    #vol_building = gdf_geometry_building['footprint'] * gdf_geometry_building['height_ag']
+    vol_building = get_volume(builing_name, os.path.dirname(results_folder))
     qv_delta_p_lea_ref_zone = calc_qv_delta_p_ref(n50, vol_building)
     area_facade_zone,\
     area_roof_zone,\
     height_zone,\
-    slope_roof = get_building_geometry_ventilation(gdf_geometry_building)
+    slope_roof = get_ven_props(builing_name, os.path.dirname(results_folder))
+
     class_shielding = gv.shielding_class
     factor_cros = gdf_architecture_building['f_cros']
     area_vent_zone = 0  # (cm2) area of ventilation openings # TODO: get from buildings properties

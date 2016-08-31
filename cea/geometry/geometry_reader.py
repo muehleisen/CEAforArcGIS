@@ -7,11 +7,15 @@ algorithms for manipulation of building geometry
 """
 
 from __future__ import division
+import math
+import numpy as np
+from geopandas import GeoDataFrame
 import pandas as pd
+import os
 
-__author__ = "Gabriel Happle"
+__author__ = "Paul Neitzel"
 __copyright__ = "Copyright 2015, Architecture and Building Systems - ETH Zurich"
-__credits__ = ["Gabriel Happle"]
+__credits__ = ["Paul Neitzel"]
 __license__ = "MIT"
 __version__ = "0.1"
 __maintainer__ = "Daren Thomas"
@@ -25,157 +29,155 @@ Windows
 =========================================
 """
 
-def create_windows(df_prop_surfaces, gdf_building_architecture):
-    """
-    Creates windows on exposed building surfaces according to building win-wall-ratio
+
+def get_facade_area(locator):
+    # data for one day to calculate fraction that faces the exterior
+    n_shaded_frac_file = locator.get_sen_not_shaded()
+    n_shaded_frac = pd.read_csv(n_shaded_frac_file, header=None).T
+
+    # read building sensor id file
+    bui_id_df_file = locator.get_bui_id_df()
+    bui_id_df = pd.read_csv(bui_id_df_file)
+
+    bui_id_df['ex_frac'] = n_shaded_frac
+    bui_id_df['area_frac'] = bui_id_df["fac_area"].multiply(bui_id_df['ex_frac'], axis="index")
+
+    # select vertical surfaces, considered <10% angle
+    dir_z_limit = math.sin(10.0 / 180 * math.pi)
+    sel_vertical = bui_id_df[bui_id_df['sen_dir_z'] < dir_z_limit]
+    area_frac = sel_vertical[["bui", "area_frac"]].groupby(['bui']).sum().reset_index()
+    area_frac.columns = ['Name', 'Awall_all']
+    return area_frac
 
 
-    PARAMETERS
-    ----------
+def create_windows(locator):
+    # read face file
+    bui_points_file = locator.get_building_points()
+    bui_points = pd.read_csv(bui_points_file, header=None)
+    bui_points.columns = ['bui', 'int', 'x', 'y', 'z', 'dir_x', 'dir_y', 'dir_z']
 
-    :param df_prop_surfaces: DataFrame containing all exposed building surfaces (this is the `properties_surfaces.csv`
-        file from the radiation calculation)
-    :type df_prop_surfaces: DataFrame
+    # read building sensor id file
+    bui_id_df_file = locator.get_bui_id_df()
+    bui_id_df = pd.read_csv(bui_id_df_file)
 
-    :param gdf_building_architecture: GeoDataFrame containing building architecture - this is the `architecture.shp`
-        file from the scenario input, containing the `win_wall` column with the window to wall ratio.
-    :type gdf_building_architecture: GeoDataFrame
+    # data for one day to calculate fraction that faces the exterior
+    n_shaded_frac_file = locator.get_sen_not_shaded()
+    n_shaded_frac = pd.read_csv(n_shaded_frac_file, header=None).T
+    bui_id_df['ex_frac'] = n_shaded_frac
 
-    RETURNS
-    -------
+    # initialize lists
+    window_area = []
+    window_height = []
+    window_angle = []
+    window_orientation = []
+    window_bui_name = []
 
-    :returns: DataFrame containing all windows of all buildings
-    :rtype: DataFrame
+    # builing min level
+    bui_min_z = bui_points[["bui", "z"]].groupby("bui").min().reset_index()
+    # window to wall ratio
+    architecture_path = locator.get_building_architecture()
+    prop_architecture = GeoDataFrame.from_file(architecture_path).drop('geometry', axis=1).set_index('Name')
 
-    Sample rows of output:
-           angle_window  area_window  height_window_above_ground  \
-    0            90     1.910858                         1.5
-    1            90     2.276739                         1.5
-    2            90     2.276739                         4.5
-    3            90     2.276739                         7.5
-    4            90     2.276739                        10.5
+    # fraction facing the exterior
+    frac_ex = bui_id_df[["ex_frac", 'bui_fac']].groupby("bui_fac").mean().reset_index()
 
-       height_window_in_zone name_building  orientation_window
-    0                    1.5       B140589                   0
-    1                    1.5       B140590                 180
-    2                    4.5       B140590                 180
-    3                    7.5       B140590                 180
-    4                   10.5       B140590                 180
+    for i in range(bui_points['int'].max()):
+        # window building name
+        bui = bui_points[['bui']][bui_points['int'] == i].reset_index()
+        bui = bui['bui'][0]
 
-    [5 rows x 6 columns]
-    """
-    # TODO: documentation
+        # window height
+        amin = bui_min_z['z'][bui_min_z['bui'] == bui].tolist()[0]
+        height = bui_points[['z']][bui_points['int'] == i].mean().get_value(0)
+        window_height.append(height - amin)
+        window_bui_name.append(bui)
 
-    # sort dataframe for name of building for default orientation generation
-    # FIXME remove this in the future
-    if pd.__version__ == '0.16.1':
-        # maintain compatibility with ArcGIS 10.4 pandas
-        df_prop_surfaces.sort(['Name'])
-    else:
-        df_prop_surfaces.sort_values('Name')
+        # window area
+        xyz = bui_points[['x', 'y', 'z']][bui_points['int'] == i].values.tolist()
+        a = math.sqrt((xyz[0][0] - xyz[1][0]) ** 2 + (xyz[0][1] - xyz[1][1]) ** 2 + (xyz[0][2] - xyz[1][2]) ** 2)
+        b = math.sqrt((xyz[1][0] - xyz[2][0]) ** 2 + (xyz[1][1] - xyz[2][1]) ** 2 + (xyz[1][2] - xyz[2][2]) ** 2)
+        c = math.sqrt((xyz[2][0] - xyz[0][0]) ** 2 + (xyz[2][1] - xyz[0][1]) ** 2 + (xyz[2][2] - xyz[0][2]) ** 2)
+        s = (a + b + c) / 2
+        face_area = (s * (s - a) * (s - b) * (s - c)) ** 0.5
+        win_wall = prop_architecture.ix[bui]['win_wall']
+        win_op = prop_architecture.ix[bui]['win_op']
+        frac = frac_ex.ix[i]['ex_frac']
+        window_area.append(face_area * win_wall * win_op * frac)
 
-    # default values
-    # FIXME use real window angle in the future
-    angle_window_default = 90  # (deg), 90° = vertical, 0° = horizontal
+        # window angle
+        dir_z = bui_points[['dir_z']][bui_points['int'] == i].mean().get_value(0)
+        window_angle.append(math.acos(dir_z) * 180 / math.pi)
 
-    # read relevant columns from dataframe
-    free_height = df_prop_surfaces['Freeheight']
-    height_ag = df_prop_surfaces['height_ag']
-    length_shape = df_prop_surfaces['Shape_Leng']
-    name = df_prop_surfaces['Name']
-
-    # calculate number of exposed floors per facade
-    num_floors_free_height = (free_height / 3).astype('int')  # floor height is 3 m
-    num_windows = num_floors_free_height.sum()  # total number of windows in model, not used
-
-    # *** experiment with structured array
-    # initialize numpy structured array for results
-    # array_windows = np.zeros(num_windows,
-    #                          dtype={'names':['name_building','area_window','height_window_above_ground',
-    #                                          'orientation_window','angle_window','height_window_in_zone'],
-    #                                 'formats':['S10','f2','f2','f2','f2','f2']})
-
-    # initialize lists for results
-    col_name_building = []
-    col_area_window = []
-    col_height_window_above_ground = []
-    col_orientation_window = []
-    col_angle_window = []
-    col_height_window_in_zone = []
-
-    # for all vertical exposed facades
-    for i in range(name.size):
-
-        # generate orientation
-        # TODO in the future get real orientation
-        # FIXME
-        if i % 4 == 0:
-            orientation_default = 0
-        elif i % 4 == 1:
-            orientation_default = 180
-        elif i % 4 == 2:
-            orientation_default = 90
-        elif i % 4 == 3:
-            orientation_default = 270
+        # window orientation
+        dir_x = bui_points[['dir_x']][bui_points['int'] == i].mean().get_value(0)
+        dir_y = bui_points[['dir_y']][bui_points['int'] == i].mean().get_value(0)
+        # orientation = abs(math.copysign(math.acos(dir_y), dir_x) * 180 / math.pi - 180)
+        angle = math.copysign(math.acos(dir_y), dir_x) * 180 / math.pi
+        if abs(angle) > 135:
+            orientation = 0
+        elif abs(angle) < 45:
+            orientation = 180
+        elif angle < 0:
+            orientation = 270
         else:
-            orientation_default = 0
+            orientation = 90
 
-        # get window-wall ratio of building from architecture geodataframe
-        # win_wall_ratio = gdf_building_architecture.loc[gdf_building_architecture['Name'] == name[i]].iloc[0]['win_wall']
-        win_wall_ratio = gdf_building_architecture.ix[name[i]]['win_wall']
-        win_op_ratio = gdf_building_architecture.ix[name[i]]['win_op']
+        window_orientation.append(orientation)
 
-        # for all levels in a facade
-        for j in range(num_floors_free_height[i]):
-            window_area = length_shape[
-                              i] * 3 * win_wall_ratio * win_op_ratio  # 3m = average floor height
-            window_height_above_ground = height_ag[i] - free_height[
-                i] + j * 3 + 1.5  # 1.5m = window is placed in the middle of the floor height # TODO: make heights dynamic
-            window_height_in_zone = window_height_above_ground  # for now the building is one ventilation zone
+    df_windows = pd.DataFrame({'name_building': window_bui_name,
+                               'area_window': window_area,
+                               'height_window_above_ground': window_height,
+                               'orientation_window': window_orientation,
+                               'angle_window': window_angle,
+                               'height_window_in_zone': window_height})
 
-            col_name_building.append(name[i])
-            col_area_window.append(window_area)
-            col_height_window_above_ground.append(window_height_above_ground)
-            col_orientation_window.append(orientation_default)
-            col_angle_window.append(angle_window_default)
-            col_height_window_in_zone.append(window_height_in_zone)
+    df_windows = df_windows[df_windows['area_window'] != 0.0]
 
-    # create pandas dataframe with table of all windows
-    df_windows = pd.DataFrame({'name_building': col_name_building,
-                               'area_window': col_area_window,
-                               'height_window_above_ground': col_height_window_above_ground,
-                               'orientation_window': col_orientation_window,
-                               'angle_window': col_angle_window,
-                               'height_window_in_zone': col_height_window_in_zone})
+    # TODO: make it easier group by height and orientation, sum on area, average on angle and height in zone
 
     return df_windows
 
 
-"""
-=========================================
-surfaces for ventilation
-=========================================
-"""
+def get_ven_props(bui_name, data_path):
+    # read building sensor id file
+    bui_id_df_file = os.path.join(data_path, 'solar-radiation', 'bui_id_df.csv')
+    bui_id_df = pd.read_csv(bui_id_df_file)
+    bui_id_df = bui_id_df[bui_id_df['bui'] == bui_name]
 
-def get_building_geometry_ventilation(gdf_building_geometry):
-    """
+    # select vertical surfaces, considered <10% angle
+    dir_z_limit = math.sin(10.0 / 180 * math.pi)
+    sel_roof = bui_id_df[bui_id_df['sen_dir_z'] > dir_z_limit]
 
-    Parameters
-    ----------
-    gdf_building_geometry : GeoDataFrame contains single building
+    av_slope = sel_roof[["bui", "sen_dir_z"]].groupby(['bui']).mean().reset_index()
+    av_slope['sen_dir_z'] = np.round(np.arccos(av_slope['sen_dir_z']) * 180 / np.pi, 0)
 
-    Returns
-    -------
-    building properties for natural ventilation calculation
-    """
+    # select horizontal surfaces
+    sel_facade = bui_id_df[bui_id_df['sen_dir_z'] <= dir_z_limit]
+    av_slope = sel_roof[["bui", "sen_dir_z"]].groupby(['bui']).mean().reset_index()
+    av_slope['sen_dir_z'] = np.round(np.arccos(av_slope['sen_dir_z']) * 180 / np.pi, 0)
 
-    # TODO: get real slope of roof in the future
-    slope_roof_default = 0
+    zone_height = bui_id_df['sen_z'].max()-bui_id_df['sen_z'].min()
 
-    area_facade_zone = gdf_building_geometry['perimeter'] * gdf_building_geometry['height_ag']
-    area_roof_zone = gdf_building_geometry['footprint']
-    height_zone = gdf_building_geometry['height_ag']
-    slope_roof = slope_roof_default
+    return sel_facade['sen_area'].sum(), sel_roof['sen_area'].sum(), zone_height, av_slope['sen_dir_z'].get_value(0)
 
-    return area_facade_zone, area_roof_zone, height_zone, slope_roof
+def get_volume(bui_name, data_path):
+    # read building sensor id file
+    bui_vol_file = os.path.join(data_path, 'solar-radiation', 'bui_vol.csv')
+    bui_vol = pd.read_csv(bui_vol_file)
+    return bui_vol[bui_name].get_value(0)
 
+
+
+if __name__ == '__main__':
+    import cea.inputlocator as il
+    bui_name = 'B2368593'
+    scenario_path = r'c:\reference-case_HQ\run0'
+    locator = il.InputLocator(scenario_path=scenario_path)
+    print (get_ven_props(bui_name, os.path.join(scenario_path, 'outputs', 'data')))
+    print(get_volume(bui_name, os.path.join(scenario_path, 'outputs', 'data')))
+
+    print (get_facade_area(locator))
+
+
+
+    print(create_windows(locator))

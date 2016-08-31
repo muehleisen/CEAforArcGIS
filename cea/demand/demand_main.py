@@ -83,7 +83,7 @@ def demand_calculation(locator, weather_path, gv):
     Total_demand.csv: csv file of yearly demand data per buidling.
     """
     t0 = time.clock()
-
+    # starting date
     date = pd.date_range(gv.date_start, periods=8760, freq='H')
 
     # weather model
@@ -113,6 +113,7 @@ def demand_calculation(locator, weather_path, gv):
 def write_totals_csv(building_properties, locator):
     """read in the temporary results files and append them to the Totals.csv file."""
     counter = 0
+
     for name in building_properties.list_building_names():
         temporary_file = locator.get_temporary_file('%(name)sT.csv' % locals())
         if counter == 0:
