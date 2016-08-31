@@ -168,6 +168,11 @@ class InputLocator(object):
         radiation_results_folder = self.get_radiation_folder()
         return os.path.join(radiation_results_folder, '%s.csv' % building_name)
 
+    def get_building_list(self, name):
+        """scenario/2-results/2-demand/1-timeseries/{building_name}.csv"""
+        radiation_results_folder = self.get_radiation_folder()
+        return os.path.join(radiation_results_folder, '%s.csv' % name)
+
     def get_radiation_folder(self):
         """scenario/outputs/data/solar-radiation/radiation.csv"""
         return os.path.join(self.scenario_path, 'outputs', 'data', 'solar-radiation')
