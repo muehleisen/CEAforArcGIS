@@ -53,7 +53,7 @@ def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv,
     results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
                                              prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
 
-    Final.to_csv(locator.PV_results(building_name='B2368593'), index=True, float_format='%.2f')
+    Final.to_csv(locator.PV_results(building_name='B153750'), index=True, float_format='%.2f')
     return
 
 def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv):
@@ -74,15 +74,15 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
     # TODO: better way to decide the min radiation could be the Full load Hour, but it depends on the choice of PV module.
 
     # keep sensors if allow pv installation
-    #sensors_metadata['fac_type'] = np.where(sensors_metadata['tilt'] >= 89, 'wall', 'roof')
-    #if gv.pvonroof == True:
-    #    sensors_metadata = sensors_metadata
-    #else:
-    #    sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'roof']
-    #if gv.pvonwall == True:
-    #    sensors_metadata = sensors_metadata
-    #else:
-    #    sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'wall']
+    sensors_metadata['fac_type'] = np.where(sensors_metadata['tilt'] >= 89, 'wall', 'roof')
+    if gv.pvonroof == True:
+        sensors_metadata = sensors_metadata
+    else:
+        sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'roof']
+    if gv.pvonwall == True:
+        sensors_metadata = sensors_metadata
+    else:
+        sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'wall']
 
     # delete sensors facing downwards, FIXME: this should be cleaned up in the radiation script, but not possible at this point (08/2016)
     sensors_metadata = sensors_metadata[sensors_metadata.tilt <= 91]
@@ -365,10 +365,10 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
         l = radians(latitude)
         a = radians(teta_z)  # this is surface azimuth
         b = atan((cos(a) * tan(l)) * (1 / (1 + ((Tad * gKt - Tar * Pg) / (2 * (1 - gKt))))))
-        return degrees(b)
+        return b                      # radians
 
     def Calc_optimal_spacing(Sh, Az, tilt_angle, module_length):
-        h = module_length * sin(radians(tilt_angle))
+        h = module_length * sin(tilt_angle)
         D1 = h / tan(radians(Sh))
         D = max(D1 * cos(radians(180 - Az)), D1 * cos(radians(Az - 180)))
         return D
@@ -426,7 +426,7 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
     # calculate values for flat roofs Slope < 5 degrees.
     optimal_angle_flat = Calc_optimal_angle(0, latitude, transmissivity)
     optimal_spacing_flat = Calc_optimal_spacing(worst_sh, worst_Az, optimal_angle_flat, module_length)
-    sensors_metadata_clean['B'] = np.where(sensors_metadata_clean['tilt'] >= 5, sensors_metadata_clean['tilt'], optimal_angle_flat)
+    sensors_metadata_clean['B'] = np.where(sensors_metadata_clean['tilt'] >= 5, sensors_metadata_clean['tilt'], degrees(optimal_angle_flat))
     # set panel declination as 90 degree for walls
     sensors_metadata_clean['B'] = np.where(sensors_metadata_clean['tilt'] >= 90, 90, sensors_metadata_clean['B'])
     # assign spacing and surface azimuth of the panels for each sensor point
@@ -435,7 +435,7 @@ def optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az,
     # sensors_metadata_clean['area_netpv'] = (grid_side - sensors_metadata_clean.array_s) / [cos(x) for x in sensors_metadata_clean.B] * grid_side
     # FIXME: check the calculation
     # calculate the surface area to install one pv panel on flat roofs with defined tilt angle and array spacing
-    surface_area_flat = module_length*(sensors_metadata_clean.array_s/2 + module_length*[cos(x) for x in sensors_metadata_clean.B])
+    surface_area_flat = module_length*(sensors_metadata_clean.array_s/2 + module_length*[cos(radians(x)) for x in sensors_metadata_clean.B])
     # calculate the pv module area for each sensor
     sensors_metadata_clean['area_netpv'] = np.where(sensors_metadata_clean['tilt'] >= 5, sensors_metadata_clean.sen_area, module_length**2 * (sensors_metadata_clean.sen_area / surface_area_flat))
 
