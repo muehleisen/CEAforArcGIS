@@ -31,7 +31,7 @@ PV electricity generation
 
 """
 
-def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv, weather_path):
+def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv, weather_path, building_name):
 
     # weather data
     weather_data = epwreader.epw_reader(weather_path)
@@ -44,8 +44,9 @@ def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv,
         calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv)
 
     # calculate optimal angle and tilt for panels
-    sensors_metadata_cat = optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az, trr_mean, gv.grid_side,
-                            gv.module_length_PV, gv.angle_north, min_yearly_production, max_yearly_radiation)
+    sensors_metadata_cat = optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az, trr_mean,
+                                                  gv.grid_side,gv.module_length_PV, gv.angle_north,
+                                                  min_yearly_production, max_yearly_radiation)
 
     # group the sensors with the same tilt, surface azimuth, and total radiation
     Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(sensors_rad_clean, sensors_metadata_cat)
@@ -53,7 +54,7 @@ def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv,
     results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
                                              prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
 
-    Final.to_csv(locator.PV_results(building_name='B153749'), index=True, float_format='%.2f')
+    Final.to_csv(locator.PV_results(building_name= building_name), index=True, float_format='%.2f')
     return
 
 def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv):
@@ -544,17 +545,14 @@ def test_photovoltaic():
 
     locator = cea.inputlocator.InputLocator(r'C:\reference-case-zug\baseline')
     # for the interface, the user should pick a file out of of those in ...DB/Weather/...
-
     weather_path = locator.get_default_weather()
-    building_list_path = locator.get_building_list(name='bui_vol')
-    list_buildings_names = list(pd.read_csv(building_list_path).columns.values)
-
+    list_buildings_names = list(pd.read_csv(locator.get_building_list(name='bui_vol')).columns.values)
+    gv = cea.globalvar.GlobalVariables()
     for i,building in enumerate(list_buildings_names):
         radiation = locator.get_radiation(building_name= building)
         radiation_metadata = locator.get_radiation_metadata(building_name= building)
-        gv = cea.globalvar.GlobalVariables()
         calc_PV(locator=locator, radiation_csv= radiation, metadata_csv= radiation_metadata, latitude=46.95240555555556,
-                longitude=7.439583333333333, year=2014, gv=gv, weather_path=weather_path)
+                longitude=7.439583333333333, year=2014, gv=gv, weather_path=weather_path, building_name = building)
 
 if __name__ == '__main__':
     test_photovoltaic()
