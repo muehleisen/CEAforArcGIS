@@ -43,18 +43,19 @@ def calc_PV(locator, radiation_csv, metadata_csv, latitude, longitude, year, gv,
     max_yearly_radiation, min_yearly_production, sensors_rad_clean, sensors_metadata_clean = \
         calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv)
 
-    # calculate optimal angle and tilt for panels
-    sensors_metadata_cat = optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az, trr_mean,
-                                                  gv.grid_side,gv.module_length_PV, gv.angle_north,
-                                                  min_yearly_production, max_yearly_radiation)
+    if not sensors_metadata_clean.empty:
+        # calculate optimal angle and tilt for panels
+        sensors_metadata_cat = optimal_angle_and_tilt(sensors_metadata_clean, latitude, worst_sh, worst_Az, trr_mean,
+                                                      gv.grid_side,gv.module_length_PV, gv.angle_north,
+                                                      min_yearly_production, max_yearly_radiation)
 
-    # group the sensors with the same tilt, surface azimuth, and total radiation
-    Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(sensors_rad_clean, sensors_metadata_cat)
+        # group the sensors with the same tilt, surface azimuth, and total radiation
+        Number_groups, hourlydata_groups, number_points, prop_observers = calc_groups(sensors_rad_clean, sensors_metadata_cat)
 
-    results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
+        results, Final = Calc_pv_generation(gv.type_PVpanel, hourlydata_groups, Number_groups, number_points,
                                              prop_observers, weather_data,g, Sz, Az, ha, latitude, gv.misc_losses)
 
-    Final.to_csv(locator.PV_results(building_name= building_name), index=True, float_format='%.2f')
+        Final.to_csv(locator.PV_results(building_name= building_name), index=True, float_format='%.2f')
     return
 
 def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, metadata_csv, gv):
@@ -65,15 +66,15 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
     sensors_rad = pd.read_csv(radiation_csv)
     sensors_metadata = pd.read_csv(metadata_csv)
 
+    # join total radiation to sensor_metadata
+    sensors_rad_sum = sensors_rad.sum(0).values # add new row with yearly radiation
+    sensors_metadata['total_rad'] = sensors_rad_sum
+
     # keep sensors if allow pv installation on walls or on roofs
     sensors_metadata['fac_type'] = np.where(sensors_metadata['tilt'] >= 89, 'wall', 'roof')
-    if gv.pvonroof == True:
-        sensors_metadata = sensors_metadata
-    else:
+    if gv.pvonroof is False:
         sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'roof']
-    if gv.pvonwall == True:
-        sensors_metadata = sensors_metadata
-    else:
+    if gv.pvonwall is False:
         sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'wall']
 
     # delete sensors facing downwards, FIXME: this should be cleaned up in the radiation script, but not possible at this point (08/2016)
@@ -83,16 +84,10 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
     sensors_metadata = sensors_metadata[sensors_metadata.orientation >= -gv.angle_north]
 
     # keep sensors above min production in sensors_rad
-    sensors_rad = sensors_rad.append(sensors_rad.sum(0), ignore_index=True) # add new row with yearly radiation
-    index_totals = sensors_rad.shape[0] - 1
-
     sensors_metadata = sensors_metadata.set_index('bui_fac_sen')
-    sensors_metadata['total_rad']= sensors_rad.iloc[index_totals]  # join total radiation to sensor_metadata
-
     max_yearly_radiation = yearly_horizontal_rad
     min_yearly_radiation = max_yearly_radiation * gv.min_radiation # set min yearly radiation threshold for sensor selection
     #  TODO: better way to decide the min radiation could be the Full load Hour, but it depends on the choice of PV module.
-
     sensors_metadata_clean = sensors_metadata[sensors_metadata.total_rad >= min_yearly_radiation]
     sensors_rad_clean = sensors_rad[sensors_metadata_clean.index.tolist()] # keep sensors above min radiation
 
@@ -456,7 +451,7 @@ def calc_groups(sensors_rad_clean, sensors_metadata_cat):
     sensors_list = groups_ob.groups.values()
 
     # calculate mean hourly radiation among the sensors in each group
-    rad_group_mean = np.empty(shape=(number_groups,8761))
+    rad_group_mean = np.empty(shape=(number_groups,8760))
     number_points = np.empty(shape=(number_groups,1))
     for x in range(0, number_groups):
         sensors_rad_group = sensors_rad_clean[sensors_list[x]]
@@ -464,7 +459,6 @@ def calc_groups(sensors_rad_clean, sensors_metadata_cat):
         rad_group_mean[x] = rad_mean
         number_points[x] = len(sensors_list[x])
     hourlydata_groups = pd.DataFrame(rad_group_mean).T
-    hourlydata_groups = hourlydata_groups.drop(hourlydata_groups.index[8760])   # drop the row with total radiation
 
     return number_groups, hourlydata_groups, number_points, prop_observers
 
@@ -546,13 +540,14 @@ def test_photovoltaic():
     locator = cea.inputlocator.InputLocator(r'C:\reference-case-zug\baseline')
     # for the interface, the user should pick a file out of of those in ...DB/Weather/...
     weather_path = locator.get_default_weather()
-    list_buildings_names = list(pd.read_csv(locator.get_building_list(name='bui_vol')).columns.values)
+    list_buildings_names = pd.read_csv(locator.get_building_list(name='bui_vol')).columns.values
     gv = cea.globalvar.GlobalVariables()
-    for i,building in enumerate(list_buildings_names):
+    for building in list_buildings_names:
         radiation = locator.get_radiation(building_name= building)
         radiation_metadata = locator.get_radiation_metadata(building_name= building)
         calc_PV(locator=locator, radiation_csv= radiation, metadata_csv= radiation_metadata, latitude=46.95240555555556,
                 longitude=7.439583333333333, year=2014, gv=gv, weather_path=weather_path, building_name = building)
+
 
 if __name__ == '__main__':
     test_photovoltaic()
