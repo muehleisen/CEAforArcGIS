@@ -87,7 +87,7 @@ def calc_radiation_sensor_selection_weatherdata(weather_data, radiation_csv, met
     sensors_metadata = sensors_metadata.set_index('bui_fac_sen')
     max_yearly_radiation = yearly_horizontal_rad
     min_yearly_radiation = max_yearly_radiation * gv.min_radiation # set min yearly radiation threshold for sensor selection
-    #  TODO: better way to decide the min radiation could be the Full load Hour, but it depends on the choice of PV module.
+
     sensors_metadata_clean = sensors_metadata[sensors_metadata.total_rad >= min_yearly_radiation]
     sensors_rad_clean = sensors_rad[sensors_metadata_clean.index.tolist()] # keep sensors above min radiation
 
@@ -99,32 +99,35 @@ def calc_radiation_sensor_selection(weather_data, radiation_csv, metadata_csv, g
     # read radiation file
     sensors_rad = pd.read_csv(radiation_csv)
     sensors_metadata = pd.read_csv(metadata_csv)
-    # add new row with yearly radiation of each sensor point
-    sensors_rad = sensors_rad.append(sensors_rad.sum(0), ignore_index=True)
-    index_totals = sensors_rad.shape[0] - 1
-    # index_totals = index_totals_0[0] - 1
 
-    # get only data points with production beyond min_production
-    max_yearly_radiation = sensors_rad.ix[index_totals].max()  # Maximum solar radiation at each building [Wh/m2/year]
+    # join total radiation to sensor_metadata
+    sensors_rad_sum = sensors_rad.sum(0).values  # add new row with yearly radiation
+    sensors_metadata['total_rad'] = sensors_rad_sum
 
-    min_yearly_production_walls = max_yearly_radiation * gv.min_production * 0.5
-    min_yearly_production_roofs = max_yearly_radiation * gv.min_production
+    # keep sensors if allow pv installation on walls or on roofs
+    sensors_metadata['fac_type'] = np.where(sensors_metadata['tilt'] >= 89, 'wall', 'roof')
+    if gv.pvonroof is False:
+        sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'roof']
+    if gv.pvonwall is False:
+        sensors_metadata = sensors_metadata[sensors_metadata.fac_type != 'wall']
 
-    # join metadata names and fac_type
-    face_type = sensors_metadata[['fac_type', 'bui_fac_sen']].set_index('bui_fac_sen').T
-    sensors_rad = sensors_rad.append(face_type, ignore_index=True)
+    # delete sensors facing downwards, FIXME: this should be cleaned up in the radiation script, but not possible at this point (08/2016)
+    sensors_metadata = sensors_metadata[sensors_metadata.tilt <= 91]
+    # delete sensors facing north
+    sensors_metadata = sensors_metadata[sensors_metadata.orientation <= gv.angle_north]  # orientation = teta_z
+    sensors_metadata = sensors_metadata[sensors_metadata.orientation >= -gv.angle_north]
 
-    sensor_names_selection = sensors_rad.ix[index_totals]
-    sensor_names_faces_types = sensors_rad.ix[index_totals + 1]
+    # keep sensors above min production in sensors_rad
+    sensors_metadata = sensors_metadata.set_index('bui_fac_sen')
+    max_yearly_radiation_sensor = sensors_rad_sum.max()                    # Maximum solar radiation at each building [Wh/m2/year]
+    min_yearly_radiation = max_yearly_radiation_sensor * gv.min_radiation  # set min yearly radiation threshold for sensor selection
 
-    names_roof = sensor_names_faces_types[sensor_names_faces_types == 'roof'].index.values
-    names_walls = sensor_names_faces_types[sensor_names_faces_types == 'wall'].index.values
+    sensors_metadata_clean = sensors_metadata[sensors_metadata.total_rad >= min_yearly_radiation]
+    sensors_rad_clean = sensors_rad[sensors_metadata_clean.index.tolist()]  # keep sensors above min radiation
 
-    sensor_names_roof = sensor_names_selection[names_roof][
-        sensor_names_selection[names_roof] > min_yearly_production_roofs].index.values
-    sensor_names_wall = sensor_names_selection[names_walls][
-        sensor_names_selection[names_walls] > min_yearly_production_walls].index.values
-    return sensor_names_roof, sensor_names_wall
+    sensors_rad_clean[sensors_rad_clean[:] <= 50] = 0  # eliminate points when hourly production < 50 W/m2
+
+    return max_yearly_radiation_sensor, min_yearly_radiation, sensors_rad_clean, sensors_metadata_clean
 
 
 def Calc_pv_generation(type_panel, hourly_radiation, number_groups, number_points, prop_observers, weather_data,
