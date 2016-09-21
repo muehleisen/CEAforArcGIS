@@ -75,6 +75,10 @@ def solar_radiation_vertical(locator, path_arcgis_db, latitude, longitude, year,
     arcpy.env.overwriteOutput = True
     arcpy.CheckOutExtension("spatial")
 
+    #only for brussels case study
+    latitude = 49.8333339
+    longitude = 4.36748667
+
     # local variables
     aspect_slope = "FROM_DEM"
     heightoffset = 1
