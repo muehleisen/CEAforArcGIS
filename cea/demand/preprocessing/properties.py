@@ -227,17 +227,37 @@ def calc_category(a, x, y):
     return category
 
 def test_properties():
+    import os
+    import cea.globalvar
+
+    folder_dict = {}
+    case_path = 'C:\\reference-case_HQ\\rad_params_opt'
+    folder_list = sorted(next(os.walk(case_path))[1])
+    nr_runs = len(folder_list)
+    for folder in folder_list:
+        folder_dict[folder.split('_')[0]] = folder
+
+    for run_int in range(1):
+        scenario_name = folder_dict[str(run_int)]
+
+        gv = cea.globalvar.GlobalVariables()
+        scenario_path = os.path.join(case_path, scenario_name)
+        locator = inputlocator.InputLocator(scenario_path=scenario_path, run_index='')
+        properties(locator=locator, prop_thermal_flag=True, prop_architecture_flag=True, prop_hvac_flag=True,
+                   prop_comfort_flag=True, prop_internal_loads_flag=True, gv=gv)
+        print scenario_name, 'properties done'
     """
     Run the properties script with input from the reference case and compare the results. This ensures that changes
     made to this script (e.g. refactorings) do not stop the script from working and also that the results stay the same.
     """
+    '''
     import cea.globalvar
     gv = cea.globalvar.GlobalVariables()
     locator = inputlocator.InputLocator(scenario_path=gv.scenario_reference)
     properties(locator=locator, prop_thermal_flag=True, prop_architecture_flag=True, prop_hvac_flag=True,
                prop_comfort_flag=True, prop_internal_loads_flag=True, gv=gv)
     print 'test_properties() succeeded'
-
+    '''
 
 def is_dataframe_equal(dfa, dfb):
     comparison = dfa == dfb
