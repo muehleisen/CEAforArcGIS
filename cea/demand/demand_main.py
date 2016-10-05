@@ -175,7 +175,7 @@ def run_as_script(scenario_path=None, weather_path=None):
     for folder in folder_list:
         folder_dict[folder.split('_')[0]] = folder
 
-    for run_int in range(1):
+    for run_int in range(36, 350):
         scenario_name = folder_dict[str(run_int)]
         gv = cea.globalvar.GlobalVariables()
         scenario_path = os.path.join(case_path, scenario_name)

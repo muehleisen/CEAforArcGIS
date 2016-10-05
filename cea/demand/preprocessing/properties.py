@@ -237,7 +237,7 @@ def test_properties():
     for folder in folder_list:
         folder_dict[folder.split('_')[0]] = folder
 
-    for run_int in range(1):
+    for run_int in range(100, nr_runs):
         scenario_name = folder_dict[str(run_int)]
 
         gv = cea.globalvar.GlobalVariables()
