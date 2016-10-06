@@ -157,6 +157,7 @@ def thermal_loads_all_buildings_multiprocessing(building_properties, date, gv, l
     for i, job in enumerate(joblist):
         job.get(240)
         gv.log('Building No. %(bno)i completed out of %(num_buildings)i', bno=i + 1, num_buildings=num_buildings)
+    pool.close()
 
 """
 =========================================
@@ -164,35 +165,13 @@ test
 =========================================
 """
 
-def run_as_script(scenario_path=None, weather_path=None):
+def run_as_script(scenario_path, weather_path):
 
-    import os
+    print scenario_path
 
-    folder_dict = {}
-    case_path = 'C:\\reference-case_HQ\\rad_params_opt'
-    folder_list = sorted(next(os.walk(case_path))[1])
-    nr_runs = len(folder_list)
-    for folder in folder_list:
-        folder_dict[folder.split('_')[0]] = folder
-
-    for run_int in range(36, 350):
-        scenario_name = folder_dict[str(run_int)]
-        gv = cea.globalvar.GlobalVariables()
-        scenario_path = os.path.join(case_path, scenario_name)
-        locator = cea.inputlocator.InputLocator(scenario_path=scenario_path, run_index='')
-        # for the interface, the user should pick a file out of of those in ...DB/Weather/...
-        if weather_path is None:
-            weather_path = locator.get_default_weather()
-
-        gv.log('Running demand calculation for scenario %(scenario)s', scenario=scenario_path)
-        gv.log('Running demand calculation with weather file %(weather)s', weather=weather_path)
-        demand_calculation(locator=locator, weather_path=weather_path, gv=gv)
-        print scenario_name, 'demand done'
-    '''
     gv = cea.globalvar.GlobalVariables()
-    if scenario_path is None:
-        scenario_path = gv.scenario_reference
-    locator = cea.inputlocator.InputLocator(scenario_path=scenario_path)
+
+    locator = cea.inputlocator.InputLocator(scenario_path=scenario_path, run_index='')
     # for the interface, the user should pick a file out of of those in ...DB/Weather/...
     if weather_path is None:
         weather_path = locator.get_default_weather()
@@ -200,13 +179,33 @@ def run_as_script(scenario_path=None, weather_path=None):
     gv.log('Running demand calculation for scenario %(scenario)s', scenario=scenario_path)
     gv.log('Running demand calculation with weather file %(weather)s', weather=weather_path)
     demand_calculation(locator=locator, weather_path=weather_path, gv=gv)
-    '''
+
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--scenario', help='Path to the scenario folder')
-    parser.add_argument('-w', '--weather', help='Path to the weather file')
-    args = parser.parse_args()
-    run_as_script(scenario_path=args.scenario, weather_path=args.weather)
 
+    import os
+
+    case_path = r'C:\reference-case_HQ\rad_params_opt'
+    scenario_list = pd.read_csv(os.path.join(case_path, 'scen_list.csv'), header=None)
+    for run_int in range(300, 400):
+        scenario_name = scenario_list[0][run_int]
+        gv = cea.globalvar.GlobalVariables()
+        scenario_path = os.path.join(case_path, scenario_name)
+        locator = cea.inputlocator.InputLocator(scenario_path=scenario_path, run_index='')
+        # for the interface, the user should pick a file out of of those in ...DB/Weather/...
+
+        weather_path = locator.get_weather('Zurich')
+
+
+
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-s', '--scenario', help='Path to the scenario_path')
+        parser.add_argument('-w', '--weather', help='Path to the weather file')
+        args = parser.parse_args(['-s', scenario_path, '-w', weather_path])
+
+
+        run_as_script(scenario_path=args.scenario, weather_path=args.weather)
+
+        print scenario_name, 'demand done'

@@ -230,16 +230,10 @@ def test_properties():
     import os
     import cea.globalvar
 
-    folder_dict = {}
     case_path = 'C:\\reference-case_HQ\\rad_params_opt'
-    folder_list = sorted(next(os.walk(case_path))[1])
-    nr_runs = len(folder_list)
-    for folder in folder_list:
-        folder_dict[folder.split('_')[0]] = folder
-
-    for run_int in range(100, nr_runs):
-        scenario_name = folder_dict[str(run_int)]
-
+    scenario_list = pd.read_csv(os.path.join(case_path, 'scen_list.csv'), header=None)
+    for run_int in range(200, scenario_list.shape[0]):
+        scenario_name = scenario_list[0][run_int]
         gv = cea.globalvar.GlobalVariables()
         scenario_path = os.path.join(case_path, scenario_name)
         locator = inputlocator.InputLocator(scenario_path=scenario_path, run_index='')
