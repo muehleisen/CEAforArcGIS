@@ -8,7 +8,7 @@ import math
 import numpy as np
 
 
-def hoy_2_doy(hoy):
+def hoy_to_doy(hoy):
     """
     Hour of year to day of year
     Parameters
@@ -25,7 +25,7 @@ def hoy_2_doy(hoy):
         return None
 
 
-def doy_2_hoy(doy):
+def doy_to_hoy(doy):
     """
     Day of year to hour of year
     Parameters
@@ -42,7 +42,7 @@ def doy_2_hoy(doy):
         return None
 
 
-def hoy_2_woy(hoy):
+def hoy_to_woy(hoy):
     """
     Hour of year to week of year
     Parameters
@@ -54,12 +54,12 @@ def hoy_2_woy(hoy):
     """
 
     if check_hoy(hoy):
-        return int(math.floor(hoy_2_doy(hoy)/7)) + 1
+        return int(math.floor(hoy_to_doy(hoy) / 7)) + 1
     else:
         return None
 
 
-def hoy_2_moy(hoy):
+def hoy_to_moy(hoy):
     """
     hour of year to month of year
     Parameters
@@ -75,12 +75,12 @@ def hoy_2_moy(hoy):
         # months_of_year = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
         days_in_month = np.array([0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])
 
-        return np.where(np.cumsum(days_in_month) >= hoy_2_doy(hoy))[0][0]
+        return np.where(np.cumsum(days_in_month) >= hoy_to_doy(hoy))[0][0]
     else:
         return None
 
 
-def hoy_2_hod(hoy):
+def hoy_to_hod(hoy):
     """
     hour of year to hour of day
     Parameters
@@ -97,7 +97,7 @@ def hoy_2_hod(hoy):
         return None
 
 
-def hoy_2_dom(hoy):
+def hoy_to_dom(hoy):
     """
     hour of year to day of month
     Parameters
@@ -111,14 +111,14 @@ def hoy_2_dom(hoy):
     if check_hoy(hoy):
 
         days_in_month = np.array([0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])
-        doy = hoy_2_doy(hoy)
-        moy = hoy_2_moy(hoy)
+        doy = hoy_to_doy(hoy)
+        moy = hoy_to_moy(hoy)
         return doy - np.cumsum(days_in_month)[moy] + days_in_month[moy]
     else:
         return None
 
 
-def hoy_2_seasonhour(hoy, gv):
+def hoy_to_seasonhour(hoy, gv):
     """
     hour of year to hour relative to start of heating season
     Parameters
@@ -143,7 +143,7 @@ def hoy_2_seasonhour(hoy, gv):
         return None
 
 
-def seasonhour_2_hoy(seasonhour, gv):
+def seasonhour_to_hoy(seasonhour, gv):
     """
     hour relative to start of heating season to hour of year
     Parameters
@@ -226,7 +226,7 @@ def is_nighttime_hoy(hoy):
         start_night = 21  # 21:00 # TODO: make dynamic (e.g. as function of location/country)
         stop_night = 7  # 07:00 # TODO: make dynamic (e.g. as function of location/country)
 
-        if start_night <= hoy_2_hod(hoy) or stop_night >= hoy_2_hod(hoy):
+        if start_night <= hoy_to_hod(hoy) or stop_night >= hoy_to_hod(hoy):
             return True
         else:
             return False
@@ -312,9 +312,9 @@ def test_helpers():
     import cea.globalvar
     gv = cea.globalvar.GlobalVariables()
     # translate hours of year to hours relative to start of heating season
-    a = np.vectorize(hoy_2_seasonhour)(range(8760), gv)
+    a = np.vectorize(hoy_to_seasonhour)(range(8760), gv)
     # translate back
-    b = np.vectorize(seasonhour_2_hoy)(a, gv)
+    b = np.vectorize(seasonhour_to_hoy)(a, gv)
     # compare
     print(np.array_equal(range(8760), b))
 

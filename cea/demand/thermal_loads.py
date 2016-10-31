@@ -148,7 +148,7 @@ def calc_thermal_loads(building_name, bpr, weather_data, usage_schedules, date, 
 
         # end-use demand calculation
         for t in range(-720, 8760):
-            hoy = helpers.seasonhour_2_hoy(t, gv)
+            hoy = helpers.seasonhour_to_hoy(t, gv)
             tsd = sensible_loads.calc_Qgain_sen(hoy, tsd, bpr, gv)
 
             if bpr.hvac['type_hs'] == 'T3' and gv.is_heating_season(hoy):
