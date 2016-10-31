@@ -17,6 +17,8 @@ import cea
 import cea.inputlocator
 import multiprocessing as mp
 
+MAX_ANALYSIS_FIELDS = 4
+
 __author__ = "Jimeno A. Fonseca"
 __copyright__ = "Copyright 2015, Architecture and Building Systems - ETH Zurich"
 __credits__ = ["Jimeno A. Fonseca", "Daren Thomas"]
@@ -65,6 +67,7 @@ def graphs_demand(locator, analysis_fields, gv):
         for i, job in enumerate(joblist):
             job.get(60)
             gv.log('Building No. %(bno)i completed out of %(btot)i', bno=i + 1, btot=num_buildings)
+        pool.close()
     else:
         for i, name in enumerate(building_names):
             create_demand_graph_for_building(analysis_fields, area_df, color_palette, fields_date, locator, name,
@@ -148,6 +151,6 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--analysis_fields', default='Ealf_kWh;Qhsf_kWh;Qwwf_kWh;Qcsf_kWh',
                         help='Fields to analyse (separated by ";")')
     args = parser.parse_args()
-    run_as_script(scenario_path=args.scenario, analysis_fields=args.analysis_fields.split(';')[:4])
+    run_as_script(scenario_path=args.scenario, analysis_fields=args.analysis_fields.split(';')[:MAX_ANALYSIS_FIELDS])
 
 

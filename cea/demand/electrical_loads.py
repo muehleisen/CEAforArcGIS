@@ -19,38 +19,6 @@ __status__ = "Production"
 
 """
 =========================================
-final Internal totals electrical loads
-=========================================
-"""
-
-
-def calc_E_totals(Aef, Ealf, Eauxf, Edataf, Eprof, Eaf, Elf):
-    # TODO: Documentation
-    # FIXME: is input `Ealf` ever non-zero for Aef <= 0? (also check the other values)
-    # Refactored from CalcThermalLoads
-    if Aef > 0:
-        Ealf_0 = Ealf.max()
-        Eaf_0 = Eaf.max()
-        Elf_0 = Elf.max()
-
-        # compute totals electrical loads in MWh
-        Ealf_tot = Ealf.sum() / 1e6
-        Eaf_tot = Eaf.sum() / 1e6
-        Elf_tot = Elf.sum() / 1e6
-        Eauxf_tot = Eauxf.sum() / 1e6
-        Epro_tot = Eprof.sum() / 1e6
-        Edata_tot = Edataf.sum() / 1e6
-    else:
-        Ealf_tot = Eauxf_tot = Ealf_0 = Eaf_0 = Elf_0 = Eaf_tot = Elf_tot = 0
-        Epro_tot = Edata_tot = 0
-        Ealf = np.zeros(8760)
-        Eprof = np.zeros(8760)
-        Edataf = np.zeros(8760)
-    return Ealf, Ealf_0, Ealf_tot, Eauxf_tot, Edataf, Edata_tot, Eprof, Epro_tot, Eaf_0, Elf_0, Eaf_tot, Elf_tot
-
-
-"""
-=========================================
 final internal electrical loads
 =========================================
 """
@@ -87,23 +55,23 @@ def calc_Eint(tsd, bpr, list_uses, schedules):
     """
 
     # calculate schedules
-    schedule_Ea_El_Edata_Eref = calc_Ea_El_Edata_Eref_schedule(list_uses, schedules, bpr.occupancy)
+    schedule_applicances_lighting = average_appliances_lighting_schedule(list_uses, schedules, bpr.occupancy)
 
-    # calculate loads
-    tsd['Eaf'] = calc_Eaf(schedule_Ea_El_Edata_Eref, bpr.internal_loads['Ea_Wm2'], bpr.rc_model['Af'])
-    tsd['Elf'] = calc_Elf(schedule_Ea_El_Edata_Eref, bpr.internal_loads['El_Wm2'], bpr.rc_model['Af'])
+    # calculate final electrical consumption due to appliances and lights
+    tsd['Eaf'] = schedule_applicances_lighting * bpr.internal_loads['Ea_Wm2'] * bpr.rc_model['Aef']
+    tsd['Elf'] = schedule_applicances_lighting * bpr.internal_loads['El_Wm2'] * bpr.rc_model['Aef']
     tsd['Ealf'] = tsd['Elf'] + tsd['Eaf']
 
     # calculate other loads
     if 'COOLROOM' in bpr.occupancy:
-        schedule_Eref = calc_Ea_El_Edata_Eref_schedule(['COOLROOM'], schedules, bpr.occupancy)
+        schedule_Eref = average_appliances_lighting_schedule(['COOLROOM'], schedules, bpr.occupancy)
         tsd['Eref'] = calc_Eref(schedule_Eref, bpr.internal_loads['Ere_Wm2'], bpr.rc_model['Aef'],
                                 bpr.occupancy['COOLROOM'])  # in W
     else:
         tsd['Eref'] = np.zeros(8760)
 
     if 'SERVERROOM' in bpr.occupancy:
-        schedule_Edata = calc_Ea_El_Edata_Eref_schedule(['SERVERROOM'], schedules, bpr.occupancy)
+        schedule_Edata = average_appliances_lighting_schedule(['SERVERROOM'], schedules, bpr.occupancy)
         tsd['Edataf'] = calc_Edataf(schedule_Edata, bpr.internal_loads['Ed_Wm2'], bpr.rc_model['Aef'],
                                     bpr.occupancy['SERVERROOM'])  # in W
     else:
@@ -115,13 +83,14 @@ def calc_Eint(tsd, bpr, list_uses, schedules):
                                   bpr.occupancy['INDUSTRY'])  # in W
     else:
         tsd['Eprof'] = np.zeros(8760)
+        tsd['Ecaf'] = np.zeros(8760) # not used in the current version but in the optimization part
     return tsd
 
 
-def calc_Ea_El_Edata_Eref_schedule(list_uses, schedules, building_uses):
+def average_appliances_lighting_schedule(list_uses, schedules, building_uses):
     """
     Calculate the schedule to use for lighting and appliances based on the building uses from the schedules
-    defined for the project.
+    defined for the project unsing a weighted average.
 
     PARAMETERS
     ----------
@@ -154,62 +123,6 @@ def calc_Ea_El_Edata_Eref_schedule(list_uses, schedules, building_uses):
 
         el = np.vectorize(calc_average)(el, schedules[num][1], current_share_of_use)
     return el
-
-
-def calc_Eaf(schedule, Ea_Wm2, Aef):
-    """
-    Calculate the final electrical consumption due to appliances for a building.
-
-    PARAMETERS
-    ----------
-
-    :param schedule: The appliances and lighting schedule as calculated by `calc_Ea_El_Edata_Eref_schedule`
-    :type schedule: ndarray
-
-    :param Ea_Wm2: The maximum electrical consumption due to appliances per unit of gross floor area (as taken from the
-                   building properties / internal loads file)
-    :type Ea_Wm2: float64
-
-    :param Aef: The floor area with electricity in [m2]
-    :type Aef: float64
-
-    RETURNS
-    -------
-
-    :returns: final electrical consumption due to appliances per hour in [W]
-    :rtype: ndarray
-    """
-    # FIXME: see issue #360
-    Eaf = schedule * Ea_Wm2 * Aef  # in W
-    return Eaf
-
-
-def calc_Elf(schedule, El_Wm2, Aef):
-    """
-    Calculate the final electrical consumption due to lights for a building.
-
-    PARAMETERS
-    ----------
-
-    :param schedule: The appliances and lighting schedule as calculated by `calc_Ea_El_Edata_Eref_schedule`
-    :type schedule: ndarray
-
-    :param El_Wm2: The maximum electrical consumption due to lights per unit of gross floor area (as taken from the
-                   building properties / internal loads file)
-    :type El_Wm2: float64
-
-    :param Aef: The floor area with electricity in [m2]
-    :type Aef: float64
-
-    RETURNS
-    -------
-
-    :returns: final electrical consumption due to lights per hour in [W]
-    :rtype: ndarray
-    """
-    # FIXME: see issue #360
-    Elf = schedule * El_Wm2 * Aef  # in W
-    return Elf
 
 
 def calc_Edataf(schedule, Ed_Wm2, Aef, share):
