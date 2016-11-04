@@ -40,13 +40,15 @@ def get_facade_area(locator):
     bui_id_df = pd.read_csv(bui_id_df_file)
 
     bui_id_df['ex_frac'] = n_shaded_frac
-    bui_id_df['area_frac'] = bui_id_df["fac_area"].multiply(bui_id_df['ex_frac'], axis="index")
+    bui_id_df['area_frac'] = bui_id_df["sen_area"].multiply(bui_id_df['ex_frac'], axis="index")
 
     # select vertical surfaces, considered <10% angle
     dir_z_limit = math.sin(10.0 / 180 * math.pi)
     sel_vertical = bui_id_df[bui_id_df['sen_dir_z'] < dir_z_limit]
+
     area_frac = sel_vertical[["bui", "area_frac"]].groupby(['bui']).sum().reset_index()
     area_frac.columns = ['Name', 'Awall_all']
+
     return area_frac
 
 

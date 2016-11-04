@@ -186,9 +186,9 @@ if __name__ == '__main__':
 
     import os
 
-    case_path = r'C:\reference-case_HQ\rad_params_opt'
+    case_path = r'C:\reference-case_HQ\daysim_arcgis_comp'
     scenario_list = pd.read_csv(os.path.join(case_path, 'scen_list.csv'), header=None)
-    for run_int in range(300, 400):
+    for run_int in range(1, 3):
         scenario_name = scenario_list[0][run_int]
         gv = cea.globalvar.GlobalVariables()
         scenario_path = os.path.join(case_path, scenario_name)

@@ -230,9 +230,9 @@ def test_properties():
     import os
     import cea.globalvar
 
-    case_path = 'C:\\reference-case_HQ\\rad_params_opt'
+    case_path = r'C:\\reference-case_HQ\\daysim_arcgis_comp'
     scenario_list = pd.read_csv(os.path.join(case_path, 'scen_list.csv'), header=None)
-    for run_int in range(200, scenario_list.shape[0]):
+    for run_int in range(0, 3):
         scenario_name = scenario_list[0][run_int]
         gv = cea.globalvar.GlobalVariables()
         scenario_path = os.path.join(case_path, scenario_name)
