@@ -19,13 +19,13 @@ __status__ = "Production"
 
 class GlobalVariables(object):
     def __init__(self):
-        self.scenario_reference = r'c:\reference-case-open\baseline'
+        self.scenario_reference = r'c:\cea-reference-case\reference-case-open\baseline'
         self.print_partial = 'hourly' # hourly or monthly for the deamnd script
         self.print_yearly = True # print yearly values
         self.print_yearly_peak = True # print peak values
         self.date_start = '2016-01-01'  # format: yyyy-mm-dd
         self.seasonhours = [3216, 6192]
-        self.multiprocessing = True  # use multiprocessing / parallel execution if possible
+        self.multiprocessing = False  # use multiprocessing / parallel execution if possible
         self.Z = 3  # height of basement for every building in m
         self.Bf = 0.7  # it calculates the coefficient of reduction in transmittance for surfaces in contact with the ground according to values of SIA 380/1
         self.his = 3.45  # heat transfer coefficient between air and the surfacein W/(m2K)
@@ -531,40 +531,23 @@ class GlobalVariables(object):
              'Tcdataf_sup', 'Tcref_re',
              'Tcref_sup']]
         # here is where we decide whether full excel reports of the calculations are generated
-        self.testing = False  # if true: reports are generated, if false: not
+        self.testing = True  # if true: reports are generated, if false: not
 
 
         self.report_variables = {
             'calc-thermal-loads': {
-                'Building properties':
-                    ['Name',                'Af',                   'Aef',          'sys_e_heating',
-                     'sys_e_cooling',       'Occupants',            'Am',           'Atot',
-                     'Awall_all',           'Cm',                   'Ll',           'Lw',
-                     'Retrofit',            'Sh_typ',               'Year',         'footprint',
-                     'nf_ag',               'nfp',                  'Lcww_dis',     'Lsww_dis',
-                     'Lv',                  'Lvww_dis',             'Tcs_re_0',     'Tcs_sup_0',
-                     'Ths_re_0',            'Ths_sup_0',            'Tww_re_0',     'Tww_sup_0',
-                     'Y',                   'fforma'],
-                'Thermal loads hourly':
-                    ['ta_hs_set',           'ta_cs_set',            'people',       've',
-                     'q_int',               'Eal_nove',             'Eprof',        'Edata',
-                     'Qcdataf',             'Qcrefrif',             'vww',          'vw',
-                     'Qcdata',              'Qcrefri',              'qv_req',       'Hve',
-                     'Htr_is',              'Htr_ms',               'Htr_w',        'Htr_em',
-                     'Htr_1',               'Htr_2',                'Htr_3',        'I_sol',
-                     'I_int_sen',           'w_int',                'I_ia',         'I_m',
-                     'I_st',                'uncomfort',            'Ta',           'Tm',
-                     'Qhs_sen',             'Qcs_sen',              'Qhs_lat',      'Qcs_lat',
-                     'Qhs_em_ls',           'Qcs_em_ls',            'QHC_sen',      'ma_sup_hs',
-                     'Ta_sup_hs',           'Ta_re_hs',             'ma_sup_cs',    'Ta_sup_cs',
-                     'Ta_re_cs',            'w_sup',                'w_re',         'Ehs_lat_aux',
-                     'Qhs_sen_incl_em_ls',  'Qcs_sen_incl_em_ls',   't5',           'Tww_re',
-                     'Top',                 'Im_tot',               'tHset_corr',   'tCset_corr',
-                     'Tcs_re',              'Tcs_sup','Ths_re',     'Ths_sup',      'mcpcs',
-                     'mcphs',               'Mww',                  'Qww',          'Qww_ls_st',
-                     'Qwwf',                'Tww_st',               'Vw',           'Vww',
-                     'mcpww',               'Eaux_cs',              'Eaux_fw',      'Eaux_ve',
-                     'Eaux_ww',             'Eauxf',                'Occupancy',    'Waterconsumption']},
+                'Building Age': ['bpr.age'],
+                'Building Architecture': ['bpr.architecture'],
+                'Building Systems': ['bpr.building_systems'],
+                'Building Comfort': ['bpr.comfort'],
+                'Building Geometry': ['bpr.geometry'],
+                'Building HVAC' : ['bpr.hvac'],
+                'Building Internal Loads' : ['bpr.internal_loads'],
+                'Building Occupancy': ['bpr.occupancy'],
+                'Building RC Model': ['bpr.rc_model'],
+                'Building Solar': ['bpr.solar'],
+                'Building Windows': ['bpr.windows'],
+                'Thermal loads hourly': ['tsd']},
             'other-module-that-needs-logging': {'worksheet1': ['v1', 'v2', 'v3'],
                                                 #'worksheet2': [('v4', 'm'), ('v5', 'Mwh'), ('v6', 'MJ')]}}
                                                 'worksheet2': ['v4', 'v5', 'v6']}}
