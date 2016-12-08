@@ -98,38 +98,38 @@ def solar_radiation_vertical(locator, path_arcgis_db, latitude, longitude, year,
     T_G_day['diff'] = T_G_day['diff'].replace(1, 0.90)
     T_G_day['trr'] = (1 - T_G_day['diff'])
 
-    # T_G_day.to_csv(r'C:\Users\Jimeno\Documents/test4.csv')
-
-    # Simplify building's geometry
-    elevRaster = arcpy.sa.Raster(locator.get_terrain())
-    dem_raster_extent = elevRaster.extent
-    arcpy.SimplifyBuilding_cartography(locator.get_building_geometry(), Simple_CQ,
-                                       simplification_tolerance=8, minimum_area=None)
-    arcpy.SimplifyBuilding_cartography(locator.get_district(), Simple_context,
-                                       simplification_tolerance=8, minimum_area=None)
-
-    # # burn buildings into raster
-    Burn(Simple_context, locator.get_terrain(), dem_rasterfinal, locator.get_temporary_folder(), dem_raster_extent, gv)
-
-    # Calculate boundaries of buildings
-    CalcBoundaries(Simple_CQ, locator.get_temporary_folder(), path_arcgis_db,
-                   DataFactorsCentroids, DataFactorsBoundaries, gv)
-
-    # calculate observers
-    CalcObservers(Simple_CQ, observers, DataFactorsBoundaries, path_arcgis_db, gv)
-
-    # Calculate radiation
-    for day in range(1, 366):
-        result = None
-        while result is None:  # trick to avoid that arcgis stops calculating the days and tries again.
-            try:
-                result = CalcRadiation(day, dem_rasterfinal, observers, T_G_day, latitude,
-                                       locator.get_temporary_folder(), aspect_slope, heightoffset, gv)
-            except arcgisscripting.ExecuteError:
-                # redo the calculation
-                pass
-
-    gv.log('complete raw radiation files')
+    # # T_G_day.to_csv(r'C:\Users\Jimeno\Documents/test4.csv')
+    #
+    # # Simplify building's geometry
+    # elevRaster = arcpy.sa.Raster(locator.get_terrain())
+    # dem_raster_extent = elevRaster.extent
+    # arcpy.SimplifyBuilding_cartography(locator.get_building_geometry(), Simple_CQ,
+    #                                    simplification_tolerance=8, minimum_area=None)
+    # arcpy.SimplifyBuilding_cartography(locator.get_district(), Simple_context,
+    #                                    simplification_tolerance=8, minimum_area=None)
+    #
+    # # # burn buildings into raster
+    # Burn(Simple_context, locator.get_terrain(), dem_rasterfinal, locator.get_temporary_folder(), dem_raster_extent, gv)
+    #
+    # # Calculate boundaries of buildings
+    # CalcBoundaries(Simple_CQ, locator.get_temporary_folder(), path_arcgis_db,
+    #                DataFactorsCentroids, DataFactorsBoundaries, gv)
+    #
+    # # calculate observers
+    # CalcObservers(Simple_CQ, observers, DataFactorsBoundaries, path_arcgis_db, gv)
+    #
+    # # Calculate radiation
+    # for day in range(1, 366):
+    #     result = None
+    #     while result is None:  # trick to avoid that arcgis stops calculating the days and tries again.
+    #         try:
+    #             result = CalcRadiation(day, dem_rasterfinal, observers, T_G_day, latitude,
+    #                                    locator.get_temporary_folder(), aspect_slope, heightoffset, gv)
+    #         except arcgisscripting.ExecuteError:
+    #             # redo the calculation
+    #             pass
+    #
+    # gv.log('complete raw radiation files')
 
     # run the transformation of files appending all and adding non-sunshine hours
     radiations = []
@@ -140,7 +140,7 @@ def solar_radiation_vertical(locator, path_arcgis_db, latitude, longitude, year,
     for r in radiations[1:]:
         radiationyear = radiationyear.merge(r, on='ID', how='outer')
     radiationyear.fillna(value=0, inplace=True)
-    radiationyear.to_csv(DataradiationLocation, Index=False)
+    radiationyear.to_csv(DataradiationLocation, index=False)
 
     radiationyear = radiations = None
     gv.log('complete transformation radiation files')
@@ -210,7 +210,7 @@ def CalcRadiationSurfaces(Observers, DataFactorsCentroids, DataradiationLocation
     DataCentroidsFull = pd.merge(Centroids_ID_observers, Datacentroids, left_on='ORIG_FID', right_on='ORIG_FID')
 
     # Read again the radiation table and merge values with the Centroid_ID_observers under the field ID in Radiationtable and 'ORIG_ID' in Centroids...
-    Radiationtable = pd.read_csv(DataradiationLocation, index_col='Unnamed: 0')
+    Radiationtable = pd.read_csv(DataradiationLocation)
     DataRadiation = pd.merge(left=DataCentroidsFull, right=Radiationtable, left_on='ID', right_on='ID')
 
     Data_radiation_path = locationtemp1 + '\\' + 'tempradaition.csv'
@@ -238,6 +238,7 @@ def calc_radiation_day(day, sunrise, route):
 
     # Counter of Columns in the Initial Table
     Counter = radiation_sunnyhours.count(1)[0]
+
     values = Counter - 1
     # Condition to take into account daysavingtime in Switzerland as the radiation data in ArcGIS is calculated for 2013.
     if 90 <= day < 300:
@@ -246,6 +247,7 @@ def calc_radiation_day(day, sunrise, route):
         D = 0
     # Calculation of Sunrise time
     Sunrise_time = sunrise[day - 1]
+
     # Calculation of table
     for x in range(values):
         Hour = int(Sunrise_time) + int(D) + int(x)
@@ -480,8 +482,9 @@ def calc_sunrise(sunrise, year_to_simulate, longitude, latitude, gv):
     s = ephem.Sun()
     for day in range(1, 366):  # Calculated according to NOAA website
         o.date = datetime.datetime(year_to_simulate, 1, 1) + datetime.timedelta(day - 1)
+        print o.date
         next_event = o.next_rising(s)
-        sunrise[day - 1] = next_event.datetime().hour
+        sunrise[day - 1] = 6
     gv.log('complete calculating sunrise')
     return sunrise
 
@@ -494,13 +497,13 @@ def run_as_script(scenario_path=None, weather_path=None, latitude=None, longitud
         scenario_path = gv.scenario_reference
     locator = cea.inputlocator.InputLocator(scenario_path)
     if weather_path is None:
-        weather_path = locator.get_default_weather()
+        weather_path = r'C:\Users\Jimeno\Documents\CEAforArcGIS\cea\databases\SIN\Weather/Singapore.epw'
     if latitude is None:
-        latitude = 47.1628017306431
+        latitude = 1.35
     if longitude is None:
-        longitude = 8.31
+        longitude = 103.81
     if year is None:
-        year = 2010
+        year = 2016
     path_default_arcgis_db = os.path.expanduser(os.path.join('~', 'Documents', 'ArcGIS', 'Default.gdb'))
 
     solar_radiation_vertical(locator=locator, path_arcgis_db=path_default_arcgis_db,
@@ -514,9 +517,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--scenario', help='Path to the scenario folder')
     parser.add_argument('-w', '--weather', help='Path to the weather file')
-    parser.add_argument('--latitude', help='Latitutde', default=47.1628017306431)
-    parser.add_argument('--longitude', help='Longitude', default=8.31)
-    parser.add_argument('--year', help='Year', default=2010)
+    parser.add_argument('--latitude', help='Latitutde', default=1.3521)
+    parser.add_argument('--longitude', help='Longitude', default=103.81)
+    parser.add_argument('--year', help='Year', default=2016)
     args = parser.parse_args()
 
     run_as_script(scenario_path=args.scenario, weather_path=args.weather, latitude=args.latitude,

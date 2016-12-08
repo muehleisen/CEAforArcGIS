@@ -168,7 +168,7 @@ def run_as_script(scenario_path=None, weather_path=None):
     locator = cea.inputlocator.InputLocator(scenario_path=scenario_path)
     # for the interface, the user should pick a file out of of those in ...DB/Weather/...
     if weather_path is None:
-        weather_path = locator.get_default_weather()
+        weather_path = r'C:\Users\Jimeno\Documents\CEAforArcGIS\cea\databases\SIN\Weather/Singapore.epw'
 
     gv.log('Running demand calculation for scenario %(scenario)s', scenario=scenario_path)
     gv.log('Running demand calculation with weather file %(weather)s', weather=weather_path)

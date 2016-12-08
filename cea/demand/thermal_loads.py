@@ -256,6 +256,7 @@ def calc_thermal_loads(building_name, bpr, weather_data, usage_schedules, date, 
                           'Tcref_re','Tcref_sup']
         tsd.update(dict((x, np.zeros(8760)) for x in fields_to_fill))
 
+    pd.DataFrame(tsd['Ts']).to_csv(r'C:\riverbale\baseline\outputs\data\demand'+'//'+building_name+'Ts.csv')
     #write results to csv
     gv.demand_writer.results_to_csv(tsd, bpr, locator, date, building_name)
     # write report
