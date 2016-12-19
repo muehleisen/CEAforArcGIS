@@ -274,15 +274,13 @@ class InputLocator(object):
 
     def get_demand_measured_folder(self):
         """scenario/outputs/data/demand"""
-        assert False, 'this is the same as get_demand_results_folder'
-        demand_measured_folder = os.path.join(self.scenario_path, 'outputs', 'data', 'demand')
+        demand_measured_folder = os.path.join(self.scenario_path, 'inputs', 'building-metering')
         if not os.path.exists(demand_measured_folder):
             os.makedirs(demand_measured_folder)
         return demand_measured_folder
 
     def get_demand_measured_file(self, building_name):
         """scenario/outputs/data/demand/{building_name}.csv"""
-        assert False, 'this is the same as get_demand_results_file'
         demand_measured_file = self.get_demand_measured_folder()
         return os.path.join(demand_measured_file, '%s.csv' % building_name)
 
