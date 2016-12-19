@@ -19,6 +19,7 @@ import theano.tensor as tt
 from theano import as_op
 from pymc3.distributions.distribution import Continuous, draw_values, generate_samples
 from pymc3.distributions.dist_math import bound
+from geopandas import GeoDataFrame as Gdf
 from scipy import stats
 import numpy as np
 
@@ -41,14 +42,24 @@ __status__ = "Production"
 def calibration_main(locator, weather_path, building_name, variables, building_load, retrieve_results, niter):
 
     # create function of demand calculation and send to theano
-    @as_op(itypes=[tt.dscalar, tt.dscalar, tt.dscalar, tt.dscalar], otypes=[tt.dvector])
-    def demand_calculation(phi, err, u_win, u_wall):
-        gv.samples = {'U_win': u_win, 'U_wall': u_wall}
+    @as_op(itypes=[tt.dscalar, tt.dscalar, tt.dscalar, tt.dscalar,tt.dscalar,tt.dscalar], otypes=[tt.dvector])
+    def demand_calculation(phi, err, U_win, U_wall, Ths_setb_C, Ths_set_C):
+
+        # create an overides file which contains changes in the input variables.
+        prop_thermal = Gdf.from_file(locator.get_building_thermal()).set_index('Name')
+        prop_overrides = pd.DataFrame(index=prop_thermal.index)
+        prop_overrides['U_win'] = U_win
+        prop_overrides['U_wall'] = U_wall
+        prop_overrides['Ths_setb_C'] = Ths_setb_C
+        prop_overrides['Ths_set_C'] = Ths_set_C
+        prop_overrides.to_csv(locator.get_temporary_file('overides.csv'))
+
+        # call CEA demand calculation
         gv.multiprocessing = False
         demand_main.demand_calculation(locator, weather_path, gv)  # simulation
         result = pd.read_csv(locator.get_demand_results_file(building_name), usecols=[building_load]) * (1 + phi + err)
         out = result[building_load].values
-        print out, phi, err, u_win, u_wall
+        print out, phi, err, variables
         return out
 
     # import arguments of probability density functions (PDF) of variables and create priors:
@@ -61,19 +72,20 @@ def calibration_main(locator, weather_path, building_name, variables, building_l
     # create bayesian calibration model in PYMC3
     with pm.Model() as basic_model:
 
-        # add all variables to the model and assign a triangular distribution
+        # add all priors of selected varialbles to the model and assign a triangular distribution
         # for this we create a local variable out of the strings included in the list variables
         for variable in variables:
-            globals()[variable] = pm.Uniform(variable, lower=pdf.loc[variable, 'min'],
-                                                    upper=pdf.loc[variable, 'max'])
-        print locals()
+            lower = pdf.loc[variable, 'min']
+            upper = pdf.loc[variable, 'max']
+            globals()[variable] = pm.Uniform(variable, lower=lower, upper=upper)
+
         # get priors for the model inaquacy and the measurement errors.
         phi = pm.Uniform('phi', lower=0, upper=0.01)
         err = pm.Uniform('err', lower=0, upper=0.02)
         sigma = pm.Normal('sigma', sd=1)
 
         # expected value of outcome
-        mu = pm.Deterministic('mu', demand_calculation(phi, err, U_win, U_wall))
+        mu = pm.Deterministic('mu', demand_calculation(phi, err, U_win, U_wall, Ths_setb_C, Ths_set_C))
 
         # Likelihood (sampling distribution) of observations
         y_obs = pm.Normal('y_obs', mu=mu, sd=sigma, observed=obs_data)
@@ -155,7 +167,7 @@ def run_as_script():
     scenario_path = gv.scenario_reference
     locator = inputlocator.InputLocator(scenario_path=scenario_path)
     weather_path = locator.get_default_weather()
-    variables = ['U_win', 'U_roof', 'Ths_setb_C',
+    variables = ['U_win', 'U_wall', 'Ths_setb_C',
                  'Ths_set_C']  # based on the variables listed in the uncertainty database and selected through a screeing process
     building_name = 'B01'
     building_load = 'Qhsf_kWh'
