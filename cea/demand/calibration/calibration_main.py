@@ -74,11 +74,15 @@ def calibration_main(locator, weather_path, building_name, variables, building_l
 
         # add all priors of selected varialbles to the model and assign a triangular distribution
         # for this we create a local variable out of the strings included in the list variables
-        for variable in variables:
-            lower = pdf.loc[variable, 'min']
-            upper = pdf.loc[variable, 'max']
-            globals()[variable] = pm.Uniform(variable, lower=lower, upper=upper)
+        # for variable in variables:
+        #     lower = pdf.loc[variable, 'min']
+        #     upper = pdf.loc[variable, 'max']
+        #     globals()[variable] = pm.Uniform(variable, lower=lower, upper=upper)
 
+        U_win = pm.Uniform('U_win', lower= pdf.loc['U_win', 'min'], upper=pdf.loc['U_win', 'max'])
+        U_wall = pm.Uniform('U_wall', lower= pdf.loc['U_wall', 'min'], upper=pdf.loc['U_wall', 'max'])
+        Ths_setb_C = pm.Uniform('Ths_setb_C', lower= pdf.loc['Ths_setb_C', 'min'], upper=pdf.loc['Ths_setb_C', 'max'])
+        Ths_set_C = pm.Uniform('Ths_set_C', lower= pdf.loc['Ths_set_C', 'min'], upper=pdf.loc['Ths_set_C', 'max'])
         # get priors for the model inaquacy and the measurement errors.
         phi = pm.Uniform('phi', lower=0, upper=0.01)
         err = pm.Uniform('err', lower=0, upper=0.02)
