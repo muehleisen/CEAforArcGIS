@@ -103,7 +103,7 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
         mu = pm.Deterministic('mu', demand_calculation(phi, err, var1, var2, var3, var4, var5))
 
         # Likelihood (sampling distribution) of observations
-        if method is 'cvremse':
+        if method is 'cvrmse':
             sigma = pm.HalfNormal('sigma', sd=0.1)
             y_obs = pm.Normal('y_obs', mu=mu, sd=sigma, observed = 0.0)
         else:
@@ -208,7 +208,7 @@ def run_as_script():
     retrieve_results = False  # flag to retrieve and analyze results from calibration
     method = 'cvrmse' # cvrmse and normal distribution or 'zero_poisson' with an entire timeseries
     calibration_main(gv, locator, weather_path, building_name, variables, building_load, retrieve_results, scenario_path,
-                     method, niter=100)
+                     method, niter=1000)
 
 if __name__ == '__main__':
     run_as_script()
