@@ -268,9 +268,14 @@ class InputLocator(object):
         return os.path.join(self.get_demand_results_folder(), '%(building_name)s.csv' % locals())
 
     # CALIBRATION
-    def get_calibration_folder(self):
+    def get_calibration_folder(self, niter):
         """scenario/outputs/data/calibration"""
-        return self._ensure_folder(self.scenario_path, 'outputs', 'data', 'calibration')
+        calibration_folder = os.path.join(self.scenario_path, 'outputs', 'data', 'calibration', str(niter))
+        if not os.path.exists(calibration_folder):
+            os.makedirs(calibration_folder)
+        return
+
+
 
     def get_demand_measured_folder(self):
         """scenario/outputs/data/demand"""
