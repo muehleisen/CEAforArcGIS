@@ -107,7 +107,7 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
             sigma = pm.HalfNormal('sigma', sd=0.1)
             y_obs = pm.Normal('y_obs', mu=mu, sd=sigma, observed = 0.0)
         else:
-            y_obs = pm.ZeroInflatedPoisson('y_obs', mu=mu, psi=0.5,  observed=obs_data)
+            y_obs = pm.ZeroInflatedPoisson('y_obs', theta=mu, psi=0.5,  observed=obs_data)
 
     if retrieve_results:
         with basic_model:
@@ -206,7 +206,7 @@ def run_as_script():
     building_name = 'B01'
     building_load = 'Qhsf_kWh'
     retrieve_results = False  # flag to retrieve and analyze results from calibration
-    method = 'cvrmse' # cvrmse and normal distribution or 'zero_poisson' with an entire timeseries
+    method = 'poisson' # cvrmse and normal distribution or 'zero_poisson' with an entire timeseries
     calibration_main(gv, locator, weather_path, building_name, variables, building_load, retrieve_results, scenario_path,
                      method, niter=1000)
 
