@@ -19,7 +19,6 @@ from pymc3.backends import SQLite
 import theano.tensor as tt
 from theano import as_op
 from pymc3.distributions.distribution import Continuous, draw_values, generate_samples
-from pymc3.distributions.dist_math import bound
 from geopandas import GeoDataFrame as Gdf
 from scipy import stats
 import numpy as np
@@ -49,6 +48,7 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
         out = np.empty(1)
         samples = [var1, var2, var3, var4, var5]
 
+        print phi, err, var1, var2, var3, var4, var5
         # create an overides file which contains changes in the input variables.
         prop_thermal = Gdf.from_file(loc.get_building_thermal()).set_index('Name')
         prop_overrides = pd.DataFrame(index=prop_thermal.index)
@@ -92,7 +92,8 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
         for i, variable in enumerate(variables):
             lower = pdf.loc[variable, 'min']
             upper = pdf.loc[variable, 'max']
-            globals()['var'+str(i+1)] = pm.Uniform('var'+str(i+1), lower=lower, upper=upper)
+            c = pdf.loc[variable, 'mu']
+            globals()['var'+str(i+1)] = Triangular('var'+str(i+1), c=c, lower=lower, upper=upper)
             vars.append('var'+str(i+1))
 
         # get priors for the model inaquacy and the measurement errors.
@@ -105,13 +106,12 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
         # Likelihood (sampling distribution) of observations
         if method is 'cvrmse':
             sigma = pm.HalfNormal('sigma', sd=0.1)
-            y_obs = pm.Normal('y_obs', mu=mu, sd=sigma, observed = 0.0)
+            y_obs = pm.HalfNormal('y_obs', mu=mu, sd=sigma, observed = 0.0)
         else:
             y_obs = pm.ZeroInflatedPoisson('y_obs', theta=mu, psi=0.5,  observed=obs_data)
 
     if retrieve_results:
         with basic_model:
-
             # plot posteriors
             trace = pm.backends.text.load(locator.get_calibration_folder(niter))
             pm.traceplot(trace)
@@ -134,63 +134,83 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
 
 
 def calc_CVrmse(prediction, target):
+    """
+    This function calculates the covariance of the root square mean error between two vectors.
+    :param prediction: vector of predicted/simulated data
+    :param target: vector of target/measured data
+    :return:
+        float (0..1)
+    """
     CVrmse = np.sqrt(((prediction - target) ** 2).mean()) / prediction.mean()
     return CVrmse
 
 
-# Create Triangular distributions
-# class Triangular(Continuous):
-#     R"""
-#     Continuous Triangular log-likelihood.
-#
-#     Parameters
-#     ----------
-#     lower : float
-#         Lower limit.
-#     c: float
-#         mode
-#     upper : float
-#         Upper limit.
-#     """
-#
-#     def __init__(self, lower=0, upper=1, c=0.5, transform='interval',
-#                  *args, **kwargs):
-#         super(Triangular, self).__init__(*args, **kwargs)
-#
-#         self.c = c
-#         self.lower = lower
-#         self.upper = upper
-#         self.mean = c
-#         self.median = self.mean
-#
-#     def random(self, point=None, size=None, repeat=None):
-#         lower, c, upper = draw_values([self.lower, self.c, self.upper],
-#                                       point=point)
-#         return generate_samples(stats.triang.rvs, c=c, loc=lower, scale=upper - lower,
-#                                 size=size, random_state=None)
-#
-#
-#     def logp(self, value):
-#         c = self.c
-#         lower = self.lower
-#         upper = self.upper
-#         #f1 = -tt.log(2 * (value - lower) / ((upper - lower) * (c - lower)))
-#         #f2 = -tt.log(2 / (upper - lower))
-#         #f3 = -tt.log(2 * (upper - value) / ((upper - lower) * (upper - c)))
-#         #return bound(lower <= value < c, f1, bound(value == c, f2, bound(c < value <= upper, f3)))
-#
-#         return triang_logp(lower, upper, c, value)
-#
-# @as_op(itypes=[tt.dscalar, tt.dscalar, tt.dscalar, tt.dscalar], otypes=[tt.dscalar])
-# def triang_logp(lower, upper, c, value):
-#     if lower <= value < c:
-#         return -tt.log(2 * (value - lower) / ((upper - lower) * (c - lower)))
-#     elif value is c:
-#         return -tt.log(2 / (upper - lower))
-#     elif c < value <= upper:
-#         return -tt.log(2 * (upper - value) / ((upper - lower) * (upper - c)))
-#     else:
-#         return -np.inf
+#Create Triangular distributions
+class Triangular(Continuous):
+    """
+    Continuous Triangular log-likelihood.
+
+    Parameters
+    ----------
+    lower : float
+        Lower limit.
+    c: float
+        mode
+    upper : float
+        Upper limit.
+    """
+
+    def __init__(self, lower=0, upper=1, c=0.5, transform='interval',
+                 *args, **kwargs):
+        super(Triangular, self).__init__(*args, **kwargs)
+
+        self.c = c
+        self.lower = lower
+        self.upper = upper
+        self.mean = c
+        self.median = self.mean
+
+    def random(self, point=None, size=None, repeat=None):
+        lower, c, upper = draw_values([self.lower, self.c, self.upper],
+                                      point=point)
+        return generate_samples(stats.triang.rvs, c=c, loc=lower, scale=upper - lower,
+                                size=size, random_state=None)
+
+    def logp(self, value):
+        c = self.c
+        lower = self.lower
+        upper = self.upper
+        return tt.switch(alltrue([lower <= value, value <c]), tt.log(2 * (value - lower) / ((upper - lower) * (c - lower))),
+               tt.switch(alltrue([value == c]), tt.log(2 / (upper - lower)),
+               tt.switch(alltrue([c < value, value  <= upper]), tt.log(2 * (upper - value) / ((upper - lower) * (upper - c))), np.inf)))
+
+
+        # f1 = -tt.log(2 * (value - lower) / ((upper - lower) * (c - lower)))
+        # f2 = -tt.log(2 / (upper - lower))
+        # f3 = -tt.log(2 * (upper - value) / ((upper - lower) * (upper - c)))
+        #return bound(lower <= value < c, f1, bound(value == c, f2, bound(c < value <= upper, f3)))
+
+        # return triang_logp(lower, upper, c, value)
+
+def alltrue(vals):
+    ret = 1
+    for c in vals:
+        ret = ret * (1 * c)
+    return ret
+
+@as_op(itypes=[tt.dscalar, tt.dscalar, tt.dscalar, tt.dscalar], otypes=[tt.dscalar])
+def triang_logp(lower, upper, c, value):
+    return tt.switch((lower <= value), -tt.log(2 * (value - lower) / ((upper - lower) * (c - lower))),
+           tt.switch((value == c), -tt.log(2 / (upper - lower)),
+           tt.switch((c < value),
+           -tt.log(2 * (upper - value) / ((upper - lower) * (upper - c), -np.inf)))))
+
+def bound(logp, *conditions):
+
+
+
+    return tt.switch(alltrue(conditions), logp, -np.inf)
+
 
 
 def run_as_script():
