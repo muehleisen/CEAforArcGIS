@@ -57,7 +57,9 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
         prop_overrides.to_csv(loc.get_building_overrides())
 
         # call CEA demand calculation
-        gv.multiprocessing = False
+        gv.multiprocessing = False # do not use multiprocessing while calculating the demand
+        gv.print_totals = False # do not print yearly totals, it saves computational time
+        gv.simulate_building_list = [building_name] # just tell CEA to run only this building.
         demand_main.demand_calculation(loc, weather_path, gv)  # simulation
         result = pd.read_csv(loc.get_demand_results_file(building_name), usecols=[building_load]) * (1 + phi + err)
 
