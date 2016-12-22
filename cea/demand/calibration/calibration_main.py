@@ -19,6 +19,7 @@ from pymc3.backends import SQLite
 import theano.tensor as tt
 from theano import as_op
 from pymc3.distributions.distribution import Continuous, draw_values, generate_samples
+from pymc3.distributions.dist_math import logpow, alltrue
 from geopandas import GeoDataFrame as Gdf
 from scipy import stats
 import numpy as np
@@ -183,16 +184,9 @@ class Triangular(Continuous):
         c = self.c
         lower = self.lower
         upper = self.upper
-        return tt.switch(alltrue([lower <= value, value <c]), tt.log(2 * (value - lower) / ((upper - lower) * (c - lower))),
-               tt.switch(alltrue([value == c]), tt.log(2 / (upper - lower)),
-               tt.switch(alltrue([c < value, value  <= upper]), tt.log(2 * (upper - value) / ((upper - lower) * (upper - c))), np.inf)))
-
-
-def alltrue(vals):
-    ret = 1
-    for c in vals:
-        ret = ret * (1 * c)
-    return ret
+        return tt.switch(alltrue([lower <= value, value <c]), tt.log(2 * (value - lower)) - tt.log((upper - lower) * (c - lower)),
+               tt.switch(alltrue([value == c]), tt.log(2) - tt.log(upper - lower),
+               tt.switch(alltrue([c < value, value  <= upper]), tt.log(2 * (upper - value)) - tt.log((upper - lower) * (upper - c)), np.inf)))
 
 def run_as_script():
     import cea.inputlocator as inputlocator
