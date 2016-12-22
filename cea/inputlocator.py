@@ -138,6 +138,10 @@ class InputLocator(object):
         weather_names = [os.path.splitext(f)[0] for f in os.listdir(self.weather_path)]
         return weather_names
 
+    def get_radiance_data_folder(self):
+        """Return folder of Radiance data"""
+        return os.path.join(self.db_path, 'Radiance data')
+
     def get_archetypes_properties(self):
         """db/Archetypes/Archetypes_properties.xlsx
         path to database of archetypes file Archetypes_properties.xlsx"""
@@ -240,6 +244,10 @@ class InputLocator(object):
     def get_solar_radiation_folder(self):
         """scenario/outputs/data/solar-radiation"""
         return self._ensure_folder(self.scenario_path, 'outputs', 'data', 'solar-radiation')
+
+    def get_3D_geometry_folder(self):
+        """scenario/inputs/3D_geometries"""
+        return self._ensure_folder(self.scenario_path, 'inputs', '3D_geometries')
 
     def get_surface_properties(self):
         """scenario/outputs/data/solar-radiation/properties_surfaces.csv"""
