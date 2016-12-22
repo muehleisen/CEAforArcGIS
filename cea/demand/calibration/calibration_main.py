@@ -208,7 +208,7 @@ def run_as_script():
     retrieve_results = False  # flag to retrieve and analyze results from calibration
     method = 'poisson' # cvrmse and normal distribution or 'zero_poisson' with an entire timeseries
     calibration_main(gv, locator, weather_path, building_name, variables, building_load, retrieve_results, scenario_path,
-                     method, niter=1000)
+                     method, niter=1)
 
 if __name__ == '__main__':
     run_as_script()
