@@ -13,11 +13,13 @@ __maintainer__ = "Daren Thomas"
 __email__ = "cea@arch.ethz.ch"
 __status__ = "Production"
 
+
 class InputLocator(object):
     """The InputLocator locates files and folders for input to the scripts. This works, because we
     have a convention for the folder structure of a scenario.
     It also provides locations of other files, such as those in the databases folder (e.g. archetypes).
     """
+
     # SCENARIO
     def __init__(self, scenario_path):
         self.scenario_path = scenario_path
@@ -90,11 +92,11 @@ class InputLocator(object):
 
     def get_optimization_substations_results_file(self, building_name):
         """scenario/outputs/data/optimization/substations/${building_name}_result.csv"""
-        return os.path.join(self.get_optimization_substations_folder(),  "%(building_name)s_result.csv" % locals())
+        return os.path.join(self.get_optimization_substations_folder(), "%(building_name)s_result.csv" % locals())
 
     def get_optimization_substations_total_file(self, genome):
         """scenario/outputs/data/optimization/substations/Total_${genome}.csv"""
-        return os.path.join(self.get_optimization_substations_folder(),  "Total_%(genome)s.csv" % locals())
+        return os.path.join(self.get_optimization_substations_folder(), "Total_%(genome)s.csv" % locals())
 
     def get_optimization_clustering_folder(self):
         """scenario/outputs/data/optimization/clustering
@@ -154,15 +156,16 @@ class InputLocator(object):
 
     def get_technical_emission_systems(self):
         """db/Systems/emission_systems.csv"""
-        return os.path.join(self.db_path, 'Systems',  'emission_systems.xls')
+        return os.path.join(self.db_path, 'Systems', 'emission_systems.xls')
 
     def get_envelope_systems(self):
         """db/Systems/emission_systems.csv"""
-        return os.path.join(self.db_path, 'Systems',  'envelope_systems.xls')
+        return os.path.join(self.db_path, 'Systems', 'envelope_systems.xls')
 
     def get_data_benchmark(self):
         """db/Benchmarks/benchmark_targets.xls"""
         return os.path.join(self.db_path, 'Benchmarks', 'benchmark_targets.xls')
+
     def get_data_benchmark_today(self):
         """db/Benchmarks/benchmark_today.xls"""
         return os.path.join(self.db_path, 'Benchmarks', 'benchmark_today.xls')
@@ -270,12 +273,7 @@ class InputLocator(object):
     # CALIBRATION
     def get_calibration_folder(self, niter):
         """scenario/outputs/data/calibration"""
-        calibration_folder = os.path.join(self.scenario_path, 'outputs', 'data', 'calibration', str(niter))
-        if not os.path.exists(calibration_folder):
-            os.makedirs(calibration_folder)
-        return
-
-
+        return self._ensure_folder(self.scenario_path, 'outputs', 'data', 'calibration', str(niter))
 
     def get_demand_measured_folder(self):
         """scenario/outputs/data/demand"""
@@ -297,7 +295,7 @@ class InputLocator(object):
     def get_calibration_cluster_opt_checkpoint(self, generation):
         """scenario/outputs/data/demand/{sax_name}.csv"""
         file = self.get_calibration_folder()
-        return os.path.join(file, 'clustering', 'checkpoint_gen_'+str(generation))
+        return os.path.join(file, 'clustering', 'checkpoint_gen_' + str(generation))
 
     def get_calibration_clusters_names(self):
         """scenario/outputs/data/demand/{sax_name}.csv"""
