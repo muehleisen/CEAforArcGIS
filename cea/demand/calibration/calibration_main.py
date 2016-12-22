@@ -40,18 +40,16 @@ __status__ = "Production"
 
 
 def calibration_main(gv, locator, weather_path, building_name, variables, building_load, retrieve_results, scenario_path,
-                     method, niter):
+                     method, values_index, niter):
 
     # create function of demand calculation and send to theano
     @as_op(itypes=[tt.dscalar, tt.dscalar, tt.dscalar, tt.dscalar, tt.dscalar, tt.dscalar, tt.dscalar], otypes=[tt.dvector])
     def demand_calculation(phi, err, var1, var2, var3, var4, var5):
-        out = np.empty(1)
-        samples = [var1, var2, var3, var4, var5]
 
-        print phi, err, var1, var2, var3, var4, var5
-        # create an overides file which contains changes in the input variables.
+        # create an overrides file which contains changes in the input variables.
         prop_thermal = Gdf.from_file(loc.get_building_thermal()).set_index('Name')
         prop_overrides = pd.DataFrame(index=prop_thermal.index)
+        samples = [var1, var2, var3, var4, var5]
         for i, key in enumerate(vars):
             prop_overrides[key] = samples[i]
         prop_overrides.to_csv(loc.get_building_overrides())
@@ -63,10 +61,12 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
         demand_main.demand_calculation(loc, weather_path, gv)  # simulation
         result = pd.read_csv(loc.get_demand_results_file(building_name), usecols=[building_load]) * (1 + phi + err)
 
-        if method is 'cvremse':
-            out[0] = calc_CVrmse(result[building_load].values, obs_data)
+        # get the results for the valid range of indexes
+        if method is 'cvrmse':
+            out = np.empty(1)
+            out[0] = calc_CVrmse(result[building_load].values[values_index], obs_data)
         else:
-            out = result[building_load].values[gv.seasonhours[0]:-gv.seasonhours[1]]
+            out = result[building_load].values[values_index]
 
         print out, phi, err, var1, var2, var3, var4, var5
         return out
@@ -83,7 +83,7 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
                      ['THERMAL', 'ARCHITECTURE', 'INDOOR_COMFORT', 'INTERNAL_LOADS']]).set_index('name')
 
     # import measured data for building and building load:
-    obs_data = pd.read_csv(locator.get_demand_measured_file(building_name))[building_load].values[gv.seasonhours[0]:-gv.seasonhours[1]]
+    obs_data = pd.read_csv(locator.get_demand_measured_file(building_name))[building_load].values[values_index]
 
     # create bayesian calibration model in PYMC3
     with pm.Model() as basic_model:
@@ -108,7 +108,7 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
         # Likelihood (sampling distribution) of observations
         if method is 'cvrmse':
             sigma = pm.HalfNormal('sigma', sd=0.1)
-            y_obs = pm.HalfNormal('y_obs', mu=mu, sd=sigma, observed = 0.0)
+            y_obs = pm.Normal('y_obs', mu=mu, sd=sigma, observed = 0.0)
         else:
             y_obs = pm.ZeroInflatedPoisson('y_obs', theta=mu, psi=0.5,  observed=obs_data)
 
@@ -150,7 +150,8 @@ def calc_CVrmse(prediction, target):
 #Create Triangular distributions
 class Triangular(Continuous):
     """
-    Continuous Triangular log-likelihood.
+    Continuous Triangular log-likelihood
+    Implemented by J. A. Fonseca 22/12/16
 
     Parameters
     ----------
@@ -162,7 +163,7 @@ class Triangular(Continuous):
         Upper limit.
     """
 
-    def __init__(self, lower=0, upper=1, c=0.5, transform='interval',
+    def __init__(self, lower=0, upper=1, c=0.5,
                  *args, **kwargs):
         super(Triangular, self).__init__(*args, **kwargs)
 
@@ -172,7 +173,7 @@ class Triangular(Continuous):
         self.mean = c
         self.median = self.mean
 
-    def random(self, point=None, size=None, repeat=None):
+    def random(self, point=None, size=None):
         lower, c, upper = draw_values([self.lower, self.c, self.upper],
                                       point=point)
         return generate_samples(stats.triang.rvs, c=c, loc=lower, scale=upper - lower,
@@ -187,33 +188,11 @@ class Triangular(Continuous):
                tt.switch(alltrue([c < value, value  <= upper]), tt.log(2 * (upper - value) / ((upper - lower) * (upper - c))), np.inf)))
 
 
-        # f1 = -tt.log(2 * (value - lower) / ((upper - lower) * (c - lower)))
-        # f2 = -tt.log(2 / (upper - lower))
-        # f3 = -tt.log(2 * (upper - value) / ((upper - lower) * (upper - c)))
-        #return bound(lower <= value < c, f1, bound(value == c, f2, bound(c < value <= upper, f3)))
-
-        # return triang_logp(lower, upper, c, value)
-
 def alltrue(vals):
     ret = 1
     for c in vals:
         ret = ret * (1 * c)
     return ret
-
-@as_op(itypes=[tt.dscalar, tt.dscalar, tt.dscalar, tt.dscalar], otypes=[tt.dscalar])
-def triang_logp(lower, upper, c, value):
-    return tt.switch((lower <= value), -tt.log(2 * (value - lower) / ((upper - lower) * (c - lower))),
-           tt.switch((value == c), -tt.log(2 / (upper - lower)),
-           tt.switch((c < value),
-           -tt.log(2 * (upper - value) / ((upper - lower) * (upper - c), -np.inf)))))
-
-def bound(logp, *conditions):
-
-
-
-    return tt.switch(alltrue(conditions), logp, -np.inf)
-
-
 
 def run_as_script():
     import cea.inputlocator as inputlocator
@@ -227,10 +206,11 @@ def run_as_script():
     variables = ['U_win', 'U_wall', 'Ths_setb_C', 'Ths_set_C', 'Cm']
     building_name = 'B01'
     building_load = 'Qhsf_kWh'
+    values_index = range(0,gv.seasonhours[0])+ range(gv.seasonhours[1],8760) #indexes of timeseries to consider
     retrieve_results = False  # flag to retrieve and analyze results from calibration
-    method = 'poisson' # cvrmse and normal distribution or 'zero_poisson' with an entire timeseries
+    method = 'poisson' # cvrmse and normal distribution or 'poisson' with an entire timeseries
     calibration_main(gv, locator, weather_path, building_name, variables, building_load, retrieve_results, scenario_path,
-                     method, niter=1)
+                     method, values_index, niter=1)
 
 if __name__ == '__main__':
     run_as_script()
