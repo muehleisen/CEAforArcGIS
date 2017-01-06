@@ -95,8 +95,8 @@ def calibration_main(gv, locator, weather_path, building_name, variables, buildi
         for i, variable in enumerate(variables):
             lower = pdf.loc[variable, 'min']
             upper = pdf.loc[variable, 'max']
-            c = pdf.loc[variable, 'mu']
-            globals()['var'+str(i+1)] = Triangular('var'+str(i+1), c=c, lower=lower, upper=upper)
+            #c = pdf.loc[variable, 'mu']
+            globals()['var'+str(i+1)] = pm.Uniform('var'+str(i+1), lower=lower, upper=upper)
             vars.append('var'+str(i+1))
 
         # get priors for the model inaquacy and the measurement errors.
@@ -201,10 +201,10 @@ def run_as_script():
     building_name = 'B01'
     building_load = 'Qhsf_kWh'
     values_index = range(0,gv.seasonhours[0])+ range(gv.seasonhours[1],8760) #indexes of timeseries to consider
-    retrieve_results = False  # flag to retrieve and analyze results from calibration
-    method = 'poisson' # cvrmse and normal distribution or 'poisson' with an entire timeseries
+    retrieve_results = False # flag to retrieve and analyze results from calibration
+    method = 'cvrmse' # cvrmse and normal distribution or 'poisson' with an entire timeseries
     calibration_main(gv, locator, weather_path, building_name, variables, building_load, retrieve_results, scenario_path,
-                     method, values_index, niter=1)
+                     method, values_index, niter=10000)
 
 if __name__ == '__main__':
-    run_as_script()
+    run_as_script()`````````````````````````````````````````````````````````
